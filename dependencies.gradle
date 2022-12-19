@@ -2,6 +2,7 @@
  * Common place to define all the version dependencies
  */
 ext {
+    revKotlin = '1.7.21'
     revConductor = '3.13.2'
     revActivation = '2.0.0'
     revAmqpClient = '5.13.0'
