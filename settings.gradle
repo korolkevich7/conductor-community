@@ -38,6 +38,8 @@ include 'event-queue:nats-streaming'
 include 'lock:zookeeper-lock'
 include 'task:kafka'
 include 'community-server'
+include 'client'
+include 'java-sdk'
 
 rootProject.children.stream()
         .filter(p -> p.name.equals("persistence") || p.name.equals("index") ||
