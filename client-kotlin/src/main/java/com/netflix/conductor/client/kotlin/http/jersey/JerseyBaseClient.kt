@@ -1,7 +1,8 @@
-package com.netflix.conductor.client.kotlin.http
+package com.netflix.conductor.client.kotlin.http.jersey
 
 import com.netflix.conductor.client.kotlin.config.ConductorClientConfiguration
 import com.netflix.conductor.client.kotlin.exception.ConductorClientException
+import com.netflix.conductor.client.kotlin.http.BaseClient
 import com.netflix.conductor.common.model.BulkResponse
 import com.netflix.conductor.common.validation.ErrorResponse
 import com.sun.jersey.api.client.ClientHandlerException

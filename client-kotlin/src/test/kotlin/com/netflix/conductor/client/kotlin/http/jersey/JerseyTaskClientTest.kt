@@ -1,7 +1,7 @@
-package com.netflix.conductor.client.kotlin.http
+package com.netflix.conductor.client.kotlin.http.jersey
 
-import com.netflix.conductor.client.kotlin.http.JerseyTaskClient.Companion.searchResultTask
-import com.netflix.conductor.client.kotlin.http.JerseyTaskClient.Companion.searchResultTaskSummary
+import com.netflix.conductor.client.kotlin.http.jersey.JerseyTaskClient.Companion.searchResultTask
+import com.netflix.conductor.client.kotlin.http.jersey.JerseyTaskClient.Companion.searchResultTaskSummary
 import com.netflix.conductor.common.metadata.tasks.Task
 import com.netflix.conductor.common.run.SearchResult
 import com.netflix.conductor.common.run.TaskSummary

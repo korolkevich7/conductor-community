@@ -1,7 +1,7 @@
-package com.netflix.conductor.client.kotlin.http
+package com.netflix.conductor.client.kotlin.http.jersey
 
-import com.netflix.conductor.client.kotlin.http.JerseyWorkflowClient.Companion.searchResultWorkflow
-import com.netflix.conductor.client.kotlin.http.JerseyWorkflowClient.Companion.searchResultWorkflowSummary
+import com.netflix.conductor.client.kotlin.http.jersey.JerseyWorkflowClient.Companion.searchResultWorkflow
+import com.netflix.conductor.client.kotlin.http.jersey.JerseyWorkflowClient.Companion.searchResultWorkflowSummary
 import com.netflix.conductor.common.run.SearchResult
 import com.netflix.conductor.common.run.Workflow
 import com.netflix.conductor.common.run.WorkflowSummary

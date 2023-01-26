@@ -1,5 +1,6 @@
-package com.netflix.conductor.client.kotlin.http
+package com.netflix.conductor.client.kotlin.http.jersey
 
+import com.netflix.conductor.client.kotlin.http.BaseClientRequestHandler
 import com.netflix.conductor.common.model.BulkResponse
 import com.sun.jersey.api.client.Client
 import com.sun.jersey.api.client.ClientHandler

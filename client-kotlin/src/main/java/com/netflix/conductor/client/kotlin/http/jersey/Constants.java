@@ -1,4 +1,4 @@
-package com.netflix.conductor.client.kotlin.http;
+package com.netflix.conductor.client.kotlin.http.jersey;
 
 import com.netflix.conductor.common.metadata.events.EventHandler;
 import com.sun.jersey.api.client.GenericType;
