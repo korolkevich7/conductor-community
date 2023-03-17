@@ -1,5 +1,6 @@
 package com.netflix.conductor.client.kotlin.http.jersey
 
+import com.netflix.conductor.client.kotlin.http.TaskClient
 import com.netflix.conductor.client.kotlin.http.jersey.JerseyTaskClient.Companion.searchResultTask
 import com.netflix.conductor.client.kotlin.http.jersey.JerseyTaskClient.Companion.searchResultTaskSummary
 import com.netflix.conductor.common.metadata.tasks.Task
@@ -15,7 +16,7 @@ import kotlin.test.assertTrue
 
 class JerseyTaskClientTest : JerseyClientTest() {
 
-    private var taskClient: JerseyTaskClient = JerseyTaskClient(requestHandler)
+    private var taskClient: TaskClient = JerseyTaskClient(requestHandler)
 
     @BeforeEach
     fun setup() {

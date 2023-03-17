@@ -1,5 +1,6 @@
 package com.netflix.conductor.client.kotlin.http.jersey
 
+import com.netflix.conductor.client.kotlin.http.EventClient
 import com.netflix.conductor.common.metadata.events.EventHandler
 import com.nhaarman.mockito_kotlin.mock
 import com.sun.jersey.api.client.ClientResponse
@@ -14,7 +15,7 @@ import org.mockito.Mockito
 
 class JerseyEventClientTest : JerseyClientTest() {
 
-    private var eventClient: JerseyEventClient = JerseyEventClient(requestHandler)
+    private var eventClient: EventClient = JerseyEventClient(requestHandler)
 
     @BeforeEach
     fun setup() {

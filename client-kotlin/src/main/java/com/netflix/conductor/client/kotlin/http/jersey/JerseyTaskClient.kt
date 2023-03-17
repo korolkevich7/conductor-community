@@ -3,6 +3,7 @@ package com.netflix.conductor.client.kotlin.http.jersey
 import com.netflix.conductor.client.kotlin.config.ConductorClientConfiguration
 import com.netflix.conductor.client.kotlin.config.DefaultConductorClientConfiguration
 import com.netflix.conductor.client.kotlin.exception.ConductorClientException
+import com.netflix.conductor.client.kotlin.http.TaskClient
 import com.netflix.conductor.client.kotlin.telemetry.MetricsContainer
 import com.netflix.conductor.common.metadata.tasks.PollData
 import com.netflix.conductor.common.metadata.tasks.Task
@@ -26,7 +27,10 @@ import java.util.*
 import java.util.function.Consumer
 
 /** Client for conductor task management including polling for task, updating task status etc.  */
-class JerseyTaskClient : JerseyBaseClient {
+open class JerseyTaskClient : TaskClient {
+
+    private var jerseyBaseClient: JerseyBaseClient
+
     /** Creates a default task client  */
     constructor() : this(
         DefaultClientConfig(),
@@ -60,7 +64,7 @@ class JerseyTaskClient : JerseyBaseClient {
      * modules (e.g. ribbon)
      * @param filters Chain of client side filters to be applied per request
      */
-    constructor(config: ClientConfig, handler: ClientHandler, vararg filters: ClientFilter) : this(
+    constructor(config: ClientConfig, handler: ClientHandler?, vararg filters: ClientFilter) : this(
         config,
         DefaultConductorClientConfiguration(),
         handler,
@@ -79,24 +83,24 @@ class JerseyTaskClient : JerseyBaseClient {
         clientConfiguration: ConductorClientConfiguration?,
         handler: ClientHandler?,
         vararg filters: ClientFilter
-    ) : super(JerseyClientRequestHandler(config, handler, *filters), clientConfiguration)
+    ) {
+        jerseyBaseClient = JerseyBaseClient(JerseyClientRequestHandler(config, handler, *filters), clientConfiguration)
+    }
 
-    internal constructor(requestHandler: JerseyClientRequestHandler) : super(requestHandler, null)
+    internal constructor(requestHandler: JerseyClientRequestHandler) {
+        jerseyBaseClient = JerseyBaseClient(requestHandler, null)
+    }
 
-    /**
-     * Perform a poll for a task of a specific task type.
-     *
-     * @param taskType The taskType to poll for
-     * @param domain The domain of the task type
-     * @param workerId Name of the client worker. Used for logging.
-     * @return Task waiting to be executed.
-     */
-    suspend fun pollTask(taskType: String, workerId: String, domain: String): Task {
+    override fun setRootURI(root: String) {
+        jerseyBaseClient.setRootURI(root)
+    }
+
+    override suspend fun pollTask(taskType: String, workerId: String, domain: String): Task {
         Validate.notBlank(taskType, "Task type cannot be blank")
         Validate.notBlank(workerId, "Worker id cannot be blank")
-        val params = arrayOf<Any>("workerid", workerId, "domain", domain)
+        val params = arrayOf<Any?>("workerid", workerId, "domain", domain)
         val task = ObjectUtils.defaultIfNull<Task>(
-            getForEntity(
+            jerseyBaseClient.getForEntity(
                 "tasks/poll/{taskType}", params,
                 Task::class.java, taskType
             ),
@@ -106,26 +110,16 @@ class JerseyTaskClient : JerseyBaseClient {
         return task
     }
 
-    /**
-     * Perform a batch poll for tasks by task type. Batch size is configurable by count.
-     *
-     * @param taskType Type of task to poll for
-     * @param workerId Name of the client worker. Used for logging.
-     * @param count Maximum number of tasks to be returned. Actual number of tasks returned can be
-     * less than this number.
-     * @param timeoutInMillisecond Long poll wait timeout.
-     * @return List of tasks awaiting to be executed.
-     */
-    suspend fun batchPollTasksByTaskType(
+    override suspend fun batchPollTasksByTaskType(
         taskType: String, workerId: String, count: Int, timeoutInMillisecond: Int
     ): List<Task>? {
         Validate.notBlank(taskType, "Task type cannot be blank")
         Validate.notBlank(workerId, "Worker id cannot be blank")
         Validate.isTrue(count > 0, "Count must be greater than 0")
-        val params = arrayOf<Any>(
+        val params = arrayOf<Any?>(
             "workerid", workerId, "count", count, "timeout", timeoutInMillisecond
         )
-        val tasks: List<Task>? = getForEntity("tasks/poll/batch/{taskType}", params, taskList, taskType)
+        val tasks: List<Task>? = jerseyBaseClient.getForEntity("tasks/poll/batch/{taskType}", params, taskList, taskType)
         tasks?.forEach(Consumer { task: Task ->
             populateTaskPayloads(
                 task
@@ -134,24 +128,13 @@ class JerseyTaskClient : JerseyBaseClient {
         return tasks
     }
 
-    /**
-     * Batch poll for tasks in a domain. Batch size is configurable by count.
-     *
-     * @param taskType Type of task to poll for
-     * @param domain The domain of the task type
-     * @param workerId Name of the client worker. Used for logging.
-     * @param count Maximum number of tasks to be returned. Actual number of tasks returned can be
-     * less than this number.
-     * @param timeoutInMillisecond Long poll wait timeout.
-     * @return List of tasks awaiting to be executed.
-     */
-    suspend fun batchPollTasksInDomain(
-        taskType: String, domain: String, workerId: String, count: Int, timeoutInMillisecond: Int
+    override suspend fun batchPollTasksInDomain(
+        taskType: String, domain: String?, workerId: String, count: Int, timeoutInMillisecond: Int
     ): List<Task>? {
         Validate.notBlank(taskType, "Task type cannot be blank")
         Validate.notBlank(workerId, "Worker id cannot be blank")
         Validate.isTrue(count > 0, "Count must be greater than 0")
-        val params = arrayOf<Any>(
+        val params = arrayOf<Any?>(
             "workerid",
             workerId,
             "count",
@@ -161,7 +144,7 @@ class JerseyTaskClient : JerseyBaseClient {
             "domain",
             domain
         )
-        val tasks: List<Task>? = getForEntity("tasks/poll/batch/{taskType}", params, taskList, taskType)
+        val tasks: List<Task>? = jerseyBaseClient.getForEntity("tasks/poll/batch/{taskType}", params, taskList, taskType)
         tasks?.forEach(Consumer { task: Task ->
             populateTaskPayloads(
                 task
@@ -183,7 +166,7 @@ class JerseyTaskClient : JerseyBaseClient {
                 ExternalPayloadStorage.Operation.READ.name,
                 ExternalPayloadStorage.PayloadType.TASK_INPUT.name
             )
-            task.inputData = downloadFromExternalStorage(
+            task.inputData = jerseyBaseClient.downloadFromExternalStorage(
                 ExternalPayloadStorage.PayloadType.TASK_INPUT,
                 task.externalInputPayloadStoragePath
             )
@@ -195,7 +178,7 @@ class JerseyTaskClient : JerseyBaseClient {
                 ExternalPayloadStorage.Operation.READ.name,
                 ExternalPayloadStorage.PayloadType.TASK_OUTPUT.name
             )
-            task.outputData = downloadFromExternalStorage(
+            task.outputData = jerseyBaseClient.downloadFromExternalStorage(
                 ExternalPayloadStorage.PayloadType.TASK_OUTPUT,
                 task.externalOutputPayloadStoragePath
             )
@@ -203,34 +186,25 @@ class JerseyTaskClient : JerseyBaseClient {
         }
     }
 
-    /**
-     * Updates the result of a task execution. If the size of the task output payload is bigger than
-     * [ConductorClientConfiguration.getTaskOutputPayloadThresholdKB], it is uploaded to
-     * [ExternalPayloadStorage], if enabled, else the task is marked as
-     * FAILED_WITH_TERMINAL_ERROR.
-     *
-     * @param taskResult the [TaskResult] of the executed task to be updated.
-     */
-    suspend fun updateTask(taskResult: TaskResult) {
-        postForEntityWithRequestOnly("tasks", taskResult)
-    }
+    override suspend fun updateTask(taskResult: TaskResult) =
+        jerseyBaseClient.postForEntityWithRequestOnly("tasks", taskResult)
 
-    fun evaluateAndUploadLargePayload(
-        taskOutputData: Map<String?, Any?>?, taskType: String?
+    override fun evaluateAndUploadLargePayload(
+        taskOutputData: Map<String?, Any?>?, taskType: String
     ): String? {
         try {
             ByteArrayOutputStream().use { byteArrayOutputStream ->
-                objectMapper.writeValue(byteArrayOutputStream, taskOutputData)
+                jerseyBaseClient.objectMapper.writeValue(byteArrayOutputStream, taskOutputData)
                 val taskOutputBytes = byteArrayOutputStream.toByteArray()
                 val taskResultSize = taskOutputBytes.size.toLong()
                 MetricsContainer.recordTaskResultPayloadSize(taskType, taskResultSize)
                 val payloadSizeThreshold: Long =
-                    conductorClientConfiguration.taskOutputPayloadThresholdKB * 1024L
+                    jerseyBaseClient.conductorClientConfiguration.taskOutputPayloadThresholdKB * 1024L
                 if (taskResultSize > payloadSizeThreshold) {
                     require(
-                        !(!conductorClientConfiguration.isExternalPayloadStorageEnabled
+                        !(!jerseyBaseClient.conductorClientConfiguration.isExternalPayloadStorageEnabled
                                 || taskResultSize
-                                > conductorClientConfiguration.taskOutputMaxPayloadThresholdKB
+                                > jerseyBaseClient.conductorClientConfiguration.taskOutputMaxPayloadThresholdKB
                                 * 1024L)
                     ) {
                         "The TaskResult payload size: $taskResultSize is greater than the permissible $payloadSizeThreshold bytes"
@@ -240,7 +214,7 @@ class JerseyTaskClient : JerseyBaseClient {
                         ExternalPayloadStorage.Operation.WRITE.name,
                         ExternalPayloadStorage.PayloadType.TASK_OUTPUT.name
                     )
-                    return uploadToExternalPayloadStorage(
+                    return jerseyBaseClient.uploadToExternalPayloadStorage(
                         ExternalPayloadStorage.PayloadType.TASK_OUTPUT, taskOutputBytes, taskResultSize
                     )
                 }
@@ -253,17 +227,9 @@ class JerseyTaskClient : JerseyBaseClient {
         }
     }
 
-    /**
-     * Ack for the task poll.
-     *
-     * @param taskId Id of the task to be polled
-     * @param workerId user identified worker.
-     * @return true if the task was found with the given ID and acknowledged. False otherwise. If
-     * the server returns false, the client should NOT attempt to ack again.
-     */
-    suspend fun ack(taskId: String, workerId: String): Boolean {
+    override suspend fun ack(taskId: String, workerId: String): Boolean {
         Validate.notBlank(taskId, "Task id cannot be blank")
-        val response: String? = postForEntity(
+        val response: String? = jerseyBaseClient.postForEntity(
             "tasks/{taskId}/ack",
             null, arrayOf("workerid", workerId),
             String::class.java,
@@ -272,62 +238,39 @@ class JerseyTaskClient : JerseyBaseClient {
         return java.lang.Boolean.valueOf(response)
     }
 
-    /**
-     * Log execution messages for a task.
-     *
-     * @param taskId id of the task
-     * @param logMessage the message to be logged
-     */
-    suspend fun logMessageForTask(taskId: String, logMessage: String?) {
+    override suspend fun logMessageForTask(taskId: String, logMessage: String?) {
         Validate.notBlank(taskId, "Task id cannot be blank")
-        postForEntityWithRequestOnly("tasks/$taskId/log", logMessage)
+        jerseyBaseClient.postForEntityWithRequestOnly("tasks/$taskId/log", logMessage)
     }
 
-    /**
-     * Fetch execution logs for a task.
-     *
-     * @param taskId id of the task.
-     */
-    suspend fun getTaskLogs(taskId: String): List<TaskExecLog>? {
+    override suspend fun getTaskLogs(taskId: String): List<TaskExecLog>? {
         Validate.notBlank(taskId, "Task id cannot be blank")
-        return getForEntity("tasks/{taskId}/log", null, taskExecLogList, taskId)
+        return jerseyBaseClient.getForEntity("tasks/{taskId}/log", null, taskExecLogList, taskId)
     }
 
-    /**
-     * Retrieve information about the task
-     *
-     * @param taskId ID of the task
-     * @return Task details
-     */
-    suspend fun getTaskDetails(taskId: String): Task? {
+    override suspend fun getTaskDetails(taskId: String): Task? {
         Validate.notBlank(taskId, "Task id cannot be blank")
-        return getForEntity(
+        return jerseyBaseClient.getForEntity(
             "tasks/{taskId}", null,
             Task::class.java, taskId
         )
     }
 
-    /**
-     * Removes a task from a taskType queue
-     *
-     * @param taskType the taskType to identify the queue
-     * @param taskId the id of the task to be removed
-     */
-    suspend fun removeTaskFromQueue(taskType: String, taskId: String) {
+    override suspend fun removeTaskFromQueue(taskType: String, taskId: String) {
         Validate.notBlank(taskType, "Task type cannot be blank")
         Validate.notBlank(taskId, "Task id cannot be blank")
-        delete(url = "tasks/queue/{taskType}/{taskId}", uriVariables = arrayOf(taskType, taskId))
+        jerseyBaseClient.delete(url = "tasks/queue/{taskType}/{taskId}", uriVariables = arrayOf(taskType, taskId))
     }
 
-    suspend fun getQueueSizeForTask(taskType: String): Int {
+    override suspend fun getQueueSizeForTask(taskType: String): Int {
         Validate.notBlank(taskType, "Task type cannot be blank")
-        val queueSize: Int? = getForEntity(
+        val queueSize: Int? = jerseyBaseClient.getForEntity(
             "tasks/queue/size", arrayOf("taskType", taskType),
             object : GenericType<Int?>() {})
         return queueSize ?: 0
     }
 
-    suspend fun getQueueSizeForTask(
+    override suspend fun getQueueSizeForTask(
         taskType: String, domain: String, isolationGroupId: String, executionNamespace: String
     ): Int {
         Validate.notBlank(taskType, "Task type cannot be blank")
@@ -346,111 +289,61 @@ class JerseyTaskClient : JerseyBaseClient {
             params.add("executionNamespace")
             params.add(executionNamespace)
         }
-        val queueSize: Int? = getForEntity(
+        val queueSize: Int? = jerseyBaseClient.getForEntity(
             "tasks/queue/size",
             params.toTypedArray(),
             object : GenericType<Int?>() {})
         return queueSize ?: 0
     }
 
-    /**
-     * Get last poll data for a given task type
-     *
-     * @param taskType the task type for which poll data is to be fetched
-     * @return returns the list of poll data for the task type
-     */
-    suspend fun getPollData(taskType: String): List<PollData>? {
+    override suspend fun getPollData(taskType: String): List<PollData>? {
         Validate.notBlank(taskType, "Task type cannot be blank")
-        val params = arrayOf<Any>("taskType", taskType)
-        return getForEntity("tasks/queue/polldata", params, pollDataList)
+        val params = arrayOf<Any?>("taskType", taskType)
+        return jerseyBaseClient.getForEntity("tasks/queue/polldata", params, pollDataList)
     }
 
-    /**
-     * Get the last poll data for all task types
-     *
-     * @return returns a list of poll data for all task types
-     */
-    suspend fun getAllPollData(): List<PollData>? = getForEntity("tasks/queue/polldata/all", null, pollDataList)
+    override suspend fun getAllPollData(): List<PollData>? = jerseyBaseClient.getForEntity(
+        "tasks/queue/polldata/all", null, pollDataList
+    )
 
-    /**
-     * Requeue pending tasks for all running workflows
-     *
-     * @return returns the number of tasks that have been requeued
-     */
-    suspend fun requeueAllPendingTasks(): String? = postForEntity("tasks/queue/requeue", null, null, String::class.java)
+    override suspend fun requeueAllPendingTasks(): String? = jerseyBaseClient.postForEntity(
+        "tasks/queue/requeue", null, null, String::class.java
+    )
 
-    /**
-     * Requeue pending tasks of a specific task type
-     *
-     * @return returns the number of tasks that have been requeued
-     */
-    suspend fun requeuePendingTasksByTaskType(taskType: String): String? {
+    override suspend fun requeuePendingTasksByTaskType(taskType: String): String? {
         Validate.notBlank(taskType, "Task type cannot be blank")
-        return postForEntity(
+        return jerseyBaseClient.postForEntity(
             "tasks/queue/requeue/{taskType}", null, null,
             String::class.java, taskType
         )
     }
 
-    /**
-     * Search for tasks based on payload
-     *
-     * @param query the search string
-     * @return returns the [SearchResult] containing the [TaskSummary] matching the
-     * query
-     */
-    suspend fun search(query: String): SearchResult<TaskSummary>? = getForEntity(
+    override suspend fun search(query: String): SearchResult<TaskSummary>? = jerseyBaseClient.getForEntity(
         "tasks/search",
         arrayOf("query", query),
         searchResultTaskSummary
     )
 
-    /**
-     * Search for tasks based on payload
-     *
-     * @param query the search string
-     * @return returns the [SearchResult] containing the [Task] matching the query
-     */
-    suspend fun searchV2(query: String): SearchResult<Task>? = getForEntity(
+    override suspend fun searchV2(query: String): SearchResult<Task>? = jerseyBaseClient.getForEntity(
         "tasks/search-v2", arrayOf("query", query), searchResultTask
     )
 
-    /**
-     * Paginated search for tasks based on payload
-     *
-     * @param start start value of page
-     * @param size number of tasks to be returned
-     * @param sort sort order
-     * @param freeText additional free text query
-     * @param query the search query
-     * @return the [SearchResult] containing the [TaskSummary] that match the query
-     */
-    suspend fun search(
+    override suspend fun search(
         start: Int, size: Int, sort: String, freeText: String, query: String
     ): SearchResult<TaskSummary>? {
-        val params = arrayOf<Any>(
+        val params = arrayOf<Any?>(
             "start", start, "size", size, "sort", sort, "freeText", freeText, "query", query
         )
-        return getForEntity("tasks/search", params, searchResultTaskSummary)
+        return jerseyBaseClient.getForEntity("tasks/search", params, searchResultTaskSummary)
     }
 
-    /**
-     * Paginated search for tasks based on payload
-     *
-     * @param start start value of page
-     * @param size number of tasks to be returned
-     * @param sort sort order
-     * @param freeText additional free text query
-     * @param query the search query
-     * @return the [SearchResult] containing the [Task] that match the query
-     */
-    suspend fun searchV2(
+    override suspend fun searchV2(
         start: Int, size: Int, sort: String, freeText: String, query: String
     ): SearchResult<Task>? {
-        val params = arrayOf<Any>(
+        val params = arrayOf<Any?>(
             "start", start, "size", size, "sort", sort, "freeText", freeText, "query", query
         )
-        return getForEntity("tasks/search-v2", params, searchResultTask)
+        return jerseyBaseClient.getForEntity("tasks/search-v2", params, searchResultTask)
     }
 
     companion object {

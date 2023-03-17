@@ -4,7 +4,7 @@ import com.amazonaws.util.IOUtils
 import com.netflix.conductor.client.kotlin.exception.ConductorClientException
 import com.netflix.conductor.common.run.ExternalStorageLocation
 import com.netflix.conductor.common.utils.ExternalPayloadStorage
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import java.io.BufferedOutputStream
 import java.io.IOException
@@ -14,11 +14,18 @@ import java.net.MalformedURLException
 import java.net.URI
 import java.net.URISyntaxException
 import javax.ws.rs.core.Response
+import kotlin.coroutines.CoroutineContext
 
 
 /** An implementation of [ExternalPayloadStorage] for storing large JSON payload data.  */
 class PayloadStorage(private val clientBase: BaseClient) :
-    ExternalPayloadStorage {
+    ExternalPayloadStorage, CoroutineScope {
+
+    private val job = Job()
+
+    override val coroutineContext: CoroutineContext
+        get() = Dispatchers.Default + job
+
     /**
      * This method is not intended to be used in the client. The client makes a request to the
      * server to get the [ExternalStorageLocation]
@@ -31,19 +38,27 @@ class PayloadStorage(private val clientBase: BaseClient) :
                 ExternalPayloadStorage.PayloadType.TASK_INPUT, ExternalPayloadStorage.PayloadType.TASK_OUTPUT -> "tasks"
                 else -> throw ConductorClientException("Invalid payload type: $payloadType for operation: $operation")
             }
-        return runBlocking {
-            clientBase.getForEntity(
-                "$uri/externalstoragelocation", arrayOf(
-                    "path",
-                    path,
-                    "operation",
-                    operation.toString(),
-                    "payloadType",
-                    payloadType.toString()
-                ),
-                ExternalStorageLocation::class.java
-            ) ?: throw ConductorClientException("ExternalStorageLocation not found")
+
+        var storageLocation: ExternalStorageLocation? = null
+        launch {
+            val storageLocationDeferred = async {
+                clientBase.getForEntity(
+                    "$uri/externalstoragelocation", arrayOf(
+                        "path",
+                        path,
+                        "operation",
+                        operation.toString(),
+                        "payloadType",
+                        payloadType.toString()
+                    ),
+                    ExternalStorageLocation::class.java
+                )
+            }
+            storageLocation = storageLocationDeferred.await()
         }
+
+        return storageLocation ?: throw ConductorClientException("ExternalStorageLocation not found")
+
     }
 
     /**

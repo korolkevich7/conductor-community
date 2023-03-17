@@ -1,5 +1,6 @@
 package com.netflix.conductor.client.kotlin.http.jersey
 
+import com.netflix.conductor.client.kotlin.http.WorkflowClient
 import com.netflix.conductor.client.kotlin.http.jersey.JerseyWorkflowClient.Companion.searchResultWorkflow
 import com.netflix.conductor.client.kotlin.http.jersey.JerseyWorkflowClient.Companion.searchResultWorkflowSummary
 import com.netflix.conductor.common.run.SearchResult
@@ -14,7 +15,7 @@ import org.mockito.Mockito
 import kotlin.test.assertTrue
 
 class JerseyWorkflowClientTest : JerseyClientTest() {
-    private var workflowClient: JerseyWorkflowClient = JerseyWorkflowClient(requestHandler)
+    private var workflowClient: WorkflowClient = JerseyWorkflowClient(requestHandler)
 
     @BeforeEach
     fun setup() {

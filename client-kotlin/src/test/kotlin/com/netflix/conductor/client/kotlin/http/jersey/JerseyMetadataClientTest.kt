@@ -1,6 +1,7 @@
 package com.netflix.conductor.client.kotlin.http.jersey
 
 import com.netflix.conductor.client.kotlin.exception.ConductorClientException
+import com.netflix.conductor.client.kotlin.http.MetadataClient
 import groovy.test.GroovyTestCase.assertEquals
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
@@ -10,7 +11,7 @@ import org.mockito.Mockito
 
 class JerseyMetadataClientTest : JerseyClientTest() {
 
-    private var metadataClient: JerseyMetadataClient = JerseyMetadataClient(requestHandler)
+    private var metadataClient: MetadataClient = JerseyMetadataClient(requestHandler)
 
     @BeforeEach
     fun setup() {

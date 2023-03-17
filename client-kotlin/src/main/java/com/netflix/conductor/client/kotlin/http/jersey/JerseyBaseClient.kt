@@ -17,13 +17,13 @@ import java.util.function.Function
 
 
 /** Abstract jersey client for the REST server  */
-abstract class JerseyBaseClient protected constructor(
+open class JerseyBaseClient internal constructor(
     protected var requestHandler: JerseyClientRequestHandler,
     clientConfiguration: ConductorClientConfiguration?
 ) : BaseClient(requestHandler, clientConfiguration) {
 
     override suspend fun delete(
-        queryParams: Array<Any>?, url: String, vararg uriVariables: Any?, body: Any?
+        queryParams: Array<Any?>?, url: String, vararg uriVariables: Any?, body: Any?
     ): BulkResponse? {
         var uri: URI? = null
         var response: BulkResponse? = null
@@ -38,7 +38,7 @@ abstract class JerseyBaseClient protected constructor(
         return response
     }
 
-    protected suspend fun put(url: String, queryParams: Array<Any>?, request: Any?, vararg uriVariables: Any?) {
+    internal suspend fun put(url: String, queryParams: Array<Any?>?, request: Any?, vararg uriVariables: Any?) {
         var uri: URI? = null
         try {
             uri = getURIBuilder(root + url, queryParams).build(*uriVariables)
@@ -48,20 +48,20 @@ abstract class JerseyBaseClient protected constructor(
         }
     }
 
-    protected suspend fun postForEntityWithRequestOnly(url: String, request: Any?) {
+    internal suspend fun postForEntityWithRequestOnly(url: String, request: Any?) {
         val type: Class<*>? = null
         postForEntity(url, request, null, type)
     }
 
-    protected suspend fun postForEntityWithUriVariablesOnly(url: String, vararg uriVariables: Any?) {
+    internal suspend fun postForEntityWithUriVariablesOnly(url: String, vararg uriVariables: Any?) {
         val type: Class<*>? = null
         postForEntity(url, null, null, type, *uriVariables)
     }
 
-    protected suspend fun <T> postForEntity(
+    internal suspend fun <T> postForEntity(
         url: String,
         request: Any?,
-        queryParams: Array<Any>?,
+        queryParams: Array<Any?>?,
         responseType: Class<T>?,
         vararg uriVariables: Any?
     ): T? {
@@ -82,7 +82,7 @@ abstract class JerseyBaseClient protected constructor(
     protected suspend fun <T> postForEntity(
         url: String,
         request: Any?,
-        queryParams: Array<Any>?,
+        queryParams: Array<Any?>?,
         responseType: GenericType<T>?,
         vararg uriVariables: Any?
     ): T? {
@@ -103,7 +103,7 @@ abstract class JerseyBaseClient protected constructor(
     private suspend fun <T> postForEntity(
         url: String,
         request: Any?,
-        queryParams: Array<Any>?,
+        queryParams: Array<Any?>?,
         responseType: Any?,
         postWithEntity: Function<WebResource.Builder, T>,
         vararg uriVariables: Any?
@@ -126,7 +126,7 @@ abstract class JerseyBaseClient protected constructor(
     }
 
     override suspend fun <T> getForEntity(
-        url: String, queryParams: Array<Any>?, responseType: Class<T>?, vararg uriVariables: Any?
+        url: String, queryParams: Array<Any?>?, responseType: Class<T>?, vararg uriVariables: Any?
     ): T? {
         return getForEntity<T>(
             url, queryParams,
@@ -138,8 +138,8 @@ abstract class JerseyBaseClient protected constructor(
         )
     }
 
-    protected suspend fun <T> getForEntity(
-        url: String, queryParams: Array<Any>?, responseType: GenericType<T>?, vararg uriVariables: Any?
+    internal suspend fun <T> getForEntity(
+        url: String, queryParams: Array<Any?>?, responseType: GenericType<T>?, vararg uriVariables: Any?
     ): T? {
         return getForEntity<T>(
             url, queryParams,
@@ -153,7 +153,7 @@ abstract class JerseyBaseClient protected constructor(
 
     private suspend fun <T> getForEntity(
         url: String,
-        queryParams: Array<Any>?,
+        queryParams: Array<Any?>?,
         entityProvider: Function<ClientResponse, T>,
         vararg uriVariables: Any?
     ): T? {

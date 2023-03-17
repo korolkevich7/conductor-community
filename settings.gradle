@@ -39,6 +39,7 @@ include 'lock:zookeeper-lock'
 include 'task:kafka'
 include 'community-server'
 include 'client-kotlin'
+include 'kotlin-sdk'
 
 rootProject.children.stream()
         .filter(p -> p.name.equals("persistence") || p.name.equals("index") ||

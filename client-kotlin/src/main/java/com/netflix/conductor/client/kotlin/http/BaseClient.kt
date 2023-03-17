@@ -23,9 +23,9 @@ abstract class BaseClient protected constructor(
     clientConfiguration: ConductorClientConfiguration?
 ) {
     protected var root = ""
-    protected var objectMapper: ObjectMapper = ObjectMapperProvider().objectMapper
+    internal var objectMapper: ObjectMapper = ObjectMapperProvider().objectMapper
     protected var payloadStorage: PayloadStorage
-    protected var conductorClientConfiguration: ConductorClientConfiguration
+    internal var conductorClientConfiguration: ConductorClientConfiguration
 
     init {
         // https://github.com/FasterXML/jackson-databind/issues/2683
@@ -40,12 +40,12 @@ abstract class BaseClient protected constructor(
         this.root = root
     }
 
-    protected abstract suspend fun delete(
-        queryParams: Array<Any>? = null, url: String, vararg uriVariables: Any? = arrayOf(null), body: Any? = null
+    internal abstract suspend fun delete(
+        queryParams: Array<Any?>? = null, url: String, vararg uriVariables: Any? = arrayOf(null), body: Any? = null
     ): BulkResponse?
 
     internal abstract suspend fun <T> getForEntity(
-        url: String, queryParams: Array<Any>?, responseType: Class<T>?, vararg uriVariables: Any?
+        url: String, queryParams: Array<Any?>?, responseType: Class<T>?, vararg uriVariables: Any?
     ): T?
 
     /**
@@ -57,7 +57,7 @@ abstract class BaseClient protected constructor(
      * @param payloadSize the size of the payload
      * @return the path where the payload is stored in external storage
      */
-    protected fun uploadToExternalPayloadStorage(
+    internal fun uploadToExternalPayloadStorage(
         payloadType: ExternalPayloadStorage.PayloadType, payloadBytes: ByteArray?, payloadSize: Long
     ): String {
         Validate.isTrue(
@@ -82,7 +82,7 @@ abstract class BaseClient protected constructor(
      * @param path the relative of the payload in external storage
      * @return the payload object that is stored in external storage
      */
-    protected fun downloadFromExternalStorage(
+    internal fun downloadFromExternalStorage(
         payloadType: ExternalPayloadStorage.PayloadType, path: String
     ): Map<String, Any> {
         Validate.notBlank(path, "uri cannot be blank")
@@ -101,7 +101,7 @@ abstract class BaseClient protected constructor(
         }
     }
 
-    protected fun getURIBuilder(path: String?, queryParams: Array<Any>?): UriBuilder {
+    protected fun getURIBuilder(path: String?, queryParams: Array<Any?>?): UriBuilder {
         val builder = UriBuilder.fromPath(path ?: "")
         if (queryParams != null) {
             var i = 0
