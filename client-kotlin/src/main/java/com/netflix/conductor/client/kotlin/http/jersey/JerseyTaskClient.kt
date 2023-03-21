@@ -112,7 +112,7 @@ open class JerseyTaskClient : TaskClient {
 
     override suspend fun batchPollTasksByTaskType(
         taskType: String, workerId: String, count: Int, timeoutInMillisecond: Int
-    ): List<Task>? {
+    ): List<Task> {
         Validate.notBlank(taskType, "Task type cannot be blank")
         Validate.notBlank(workerId, "Worker id cannot be blank")
         Validate.isTrue(count > 0, "Count must be greater than 0")
@@ -125,12 +125,12 @@ open class JerseyTaskClient : TaskClient {
                 task
             )
         })
-        return tasks
+        return tasks ?: emptyList()
     }
 
     override suspend fun batchPollTasksInDomain(
         taskType: String, domain: String?, workerId: String, count: Int, timeoutInMillisecond: Int
-    ): List<Task>? {
+    ): List<Task> {
         Validate.notBlank(taskType, "Task type cannot be blank")
         Validate.notBlank(workerId, "Worker id cannot be blank")
         Validate.isTrue(count > 0, "Count must be greater than 0")
@@ -150,7 +150,7 @@ open class JerseyTaskClient : TaskClient {
                 task
             )
         })
-        return tasks
+        return tasks ?: emptyList()
     }
 
     /**
@@ -243,9 +243,10 @@ open class JerseyTaskClient : TaskClient {
         jerseyBaseClient.postForEntityWithRequestOnly("tasks/$taskId/log", logMessage)
     }
 
-    override suspend fun getTaskLogs(taskId: String): List<TaskExecLog>? {
+    override suspend fun getTaskLogs(taskId: String): List<TaskExecLog> {
         Validate.notBlank(taskId, "Task id cannot be blank")
         return jerseyBaseClient.getForEntity("tasks/{taskId}/log", null, taskExecLogList, taskId)
+            ?: emptyList()
     }
 
     override suspend fun getTaskDetails(taskId: String): Task? {
@@ -296,15 +297,15 @@ open class JerseyTaskClient : TaskClient {
         return queueSize ?: 0
     }
 
-    override suspend fun getPollData(taskType: String): List<PollData>? {
+    override suspend fun getPollData(taskType: String): List<PollData> {
         Validate.notBlank(taskType, "Task type cannot be blank")
         val params = arrayOf<Any?>("taskType", taskType)
-        return jerseyBaseClient.getForEntity("tasks/queue/polldata", params, pollDataList)
+        return jerseyBaseClient.getForEntity("tasks/queue/polldata", params, pollDataList) ?: emptyList()
     }
 
-    override suspend fun getAllPollData(): List<PollData>? = jerseyBaseClient.getForEntity(
+    override suspend fun getAllPollData(): List<PollData> = jerseyBaseClient.getForEntity(
         "tasks/queue/polldata/all", null, pollDataList
-    )
+    ) ?: emptyList()
 
     override suspend fun requeueAllPendingTasks(): String? = jerseyBaseClient.postForEntity(
         "tasks/queue/requeue", null, null, String::class.java

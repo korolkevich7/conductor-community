@@ -36,7 +36,7 @@ interface TaskClient {
      */
     suspend fun batchPollTasksByTaskType(
         taskType: String, workerId: String, count: Int, timeoutInMillisecond: Int
-    ): List<Task>?
+    ): List<Task>
 
     /**
      * Batch poll for tasks in a domain. Batch size is configurable by count.
@@ -51,7 +51,7 @@ interface TaskClient {
      */
     suspend fun batchPollTasksInDomain(
         taskType: String, domain: String?, workerId: String, count: Int, timeoutInMillisecond: Int
-    ): List<Task>?
+    ): List<Task>
 
     /**
      * Updates the result of a task execution. If the size of the task output payload is bigger than
@@ -91,7 +91,7 @@ interface TaskClient {
      *
      * @param taskId id of the task.
      */
-    suspend fun getTaskLogs(taskId: String): List<TaskExecLog>?
+    suspend fun getTaskLogs(taskId: String): List<TaskExecLog>
 
     /**
      * Retrieve information about the task
@@ -121,14 +121,14 @@ interface TaskClient {
      * @param taskType the task type for which poll data is to be fetched
      * @return returns the list of poll data for the task type
      */
-    suspend fun getPollData(taskType: String): List<PollData>?
+    suspend fun getPollData(taskType: String): List<PollData>
 
     /**
      * Get the last poll data for all task types
      *
      * @return returns a list of poll data for all task types
      */
-    suspend fun getAllPollData(): List<PollData>?
+    suspend fun getAllPollData(): List<PollData>
 
     /**
      * Requeue pending tasks for all running workflows

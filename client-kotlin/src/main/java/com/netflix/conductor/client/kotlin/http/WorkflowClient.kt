@@ -46,7 +46,7 @@ interface WorkflowClient {
      */
     suspend fun getWorkflows(
         name: String, correlationId: String, includeClosed: Boolean, includeTasks: Boolean
-    ): List<Workflow?>?
+    ): List<Workflow>
 
     /**
      * Removes a workflow from the system
@@ -72,7 +72,7 @@ interface WorkflowClient {
      * @param version the version of the wokflow definition. Defaults to 1.
      * @return the list of running workflow instances
      */
-    suspend fun getRunningWorkflow(workflowName: String, version: Int): List<String?>?
+    suspend fun getRunningWorkflow(workflowName: String, version: Int): List<String>
 
     /**
      * Retrieve all workflow instances for a given workflow name between a specific time period
@@ -85,7 +85,7 @@ interface WorkflowClient {
      */
     suspend fun getWorkflowsByTimePeriod(
         workflowName: String, version: Int, startTime: Long, endTime: Long
-    ): List<String?>?
+    ): List<String>
 
     /**
      * Starts the decision task for the given workflow instance

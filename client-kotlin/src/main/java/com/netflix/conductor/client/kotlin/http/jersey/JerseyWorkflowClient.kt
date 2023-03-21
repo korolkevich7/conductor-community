@@ -183,22 +183,22 @@ open class JerseyWorkflowClient : WorkflowClient {
 
     override suspend fun getWorkflows(
         name: String, correlationId: String, includeClosed: Boolean, includeTasks: Boolean
-    ): List<Workflow?>? {
+    ): List<Workflow> {
         Validate.notBlank(name, "name cannot be blank")
         Validate.notBlank(correlationId, "correlationId cannot be blank")
         val params = arrayOf<Any?>("includeClosed", includeClosed, "includeTasks", includeTasks)
-        val workflows: List<Workflow?>? = jerseyBaseClient.getForEntity(
+        val workflows: List<Workflow>? = jerseyBaseClient.getForEntity(
             url = "workflow/{name}/correlated/{correlationId}",
             queryParams = params,
-            responseType = object : GenericType<List<Workflow?>?>() {},
+            responseType = object : GenericType<List<Workflow>?>() {},
             uriVariables = arrayOf(name, correlationId)
         )
-        workflows?.forEach(Consumer { workflow: Workflow? ->
+        workflows?.forEach(Consumer { workflow: Workflow ->
             populateWorkflowOutput(
                 workflow
             )
         })
-        return workflows
+        return workflows ?: emptyList()
     }
 
     /**
@@ -238,26 +238,26 @@ open class JerseyWorkflowClient : WorkflowClient {
         )
     }
 
-    override suspend fun getRunningWorkflow(workflowName: String, version: Int): List<String?>? {
+    override suspend fun getRunningWorkflow(workflowName: String, version: Int): List<String> {
         Validate.notBlank(workflowName, "Workflow name cannot be blank")
         return jerseyBaseClient.getForEntity(
             "workflow/running/{name}", arrayOf("version", version),
-            object : GenericType<List<String?>?>() {},
+            object : GenericType<List<String>>() {},
             workflowName
-        )
+        ) ?: emptyList()
     }
 
     override suspend fun getWorkflowsByTimePeriod(
         workflowName: String, version: Int, startTime: Long, endTime: Long
-    ): List<String?>? {
+    ): List<String> {
         Validate.notBlank(workflowName, "Workflow name cannot be blank")
         val params = arrayOf<Any?>("version", version, "startTime", startTime, "endTime", endTime)
         return jerseyBaseClient.getForEntity(
             "workflow/running/{name}",
             params,
-            object : GenericType<List<String?>?>() {},
+            object : GenericType<List<String>>() {},
             workflowName
-        )
+        ) ?: emptyList()
     }
 
     override suspend fun runDecider(workflowId: String) {
