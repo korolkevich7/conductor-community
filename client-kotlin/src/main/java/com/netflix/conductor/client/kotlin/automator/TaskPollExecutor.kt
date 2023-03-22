@@ -42,16 +42,12 @@ internal class TaskPollExecutor(
     var leaseExtendMap: MutableMap<String, ScheduledFuture<*>> = HashMap()
 
     fun pollAndExecute(worker: Worker) {
-        val discoveryOverride = Optional.ofNullable<Boolean>(
+        val discoveryOverride =
             PropertyFactory.getBoolean(
                 worker.taskDefName, OVERRIDE_DISCOVERY, null
+            ) ?: PropertyFactory.getBoolean(
+                ALL_WORKERS, OVERRIDE_DISCOVERY, false
             )
-        )
-            .orElseGet {
-                PropertyFactory.getBoolean(
-                    ALL_WORKERS, OVERRIDE_DISCOVERY, false
-                )
-            }
         if (eurekaClient != null && eurekaClient.instanceRemoteStatus != InstanceInfo.InstanceStatus.UP
             && !discoveryOverride
         ) {
@@ -71,21 +67,15 @@ internal class TaskPollExecutor(
         }
         var acquiredTasks = 0
         try {
-            val domain = Optional.ofNullable<String?>(
-                PropertyFactory.getString(
-                    taskType,
-                    DOMAIN,
-                    null
-                )
-            )
-                .orElseGet {
-                    Optional.ofNullable<String?>(
-                        PropertyFactory.getString(
-                            ALL_WORKERS, DOMAIN, null
-                        )
+            val domain = PropertyFactory.getString(
+                taskType,
+                DOMAIN,
+                null
+            ) ?: (
+                    PropertyFactory.getString(
+                        ALL_WORKERS, DOMAIN, null
+                    ) ?: taskToDomain[taskType]
                     )
-                        .orElse(taskToDomain[taskType])
-                }
             LOGGER.debug("Polling task of type: {} in domain: '{}'", taskType, domain)
 
             val tasks: List<Task> = MetricsContainer.getPollTimer(taskType)
@@ -317,7 +307,7 @@ internal class TaskPollExecutor(
     ) {
         try {
             // upload if necessary
-            val optionalExternalStorageLocation = retryOperation(
+            val externalStorageLocation = retryOperation(
                 { taskResult: TaskResult ->
                     upload(
                         taskResult,
@@ -328,8 +318,8 @@ internal class TaskPollExecutor(
                 result,
                 "evaluateAndUploadLargePayload"
             )
-            optionalExternalStorageLocation?.let {
-                result.externalOutputPayloadStoragePath = optionalExternalStorageLocation
+            externalStorageLocation?.let {
+                result.externalOutputPayloadStoragePath = externalStorageLocation
                 result.outputData = null
             }
 
