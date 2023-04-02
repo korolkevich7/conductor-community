@@ -30,14 +30,14 @@ open class JerseyClientRequestHandler(
     }
 
     override suspend fun delete(uri: URI?, body: Any?): BulkResponse? {
-        if (body != null) {
-            return client.resource(uri)
+        return if (body != null) {
+            client.resource(uri)
                 .type(MediaType.APPLICATION_JSON_TYPE)
                 .delete(BulkResponse::class.java, body)
         } else {
             client.resource(uri).delete()
+            null
         }
-        return null
     }
 
     open suspend fun get(uri: URI?): ClientResponse {
