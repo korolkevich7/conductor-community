@@ -39,31 +39,11 @@ open class JerseyWorkflowClient : WorkflowClient {
 
     /**
      * @param config REST Client configuration
-     */
-    constructor(config: ClientConfig) : this(
-        config,
-        DefaultConductorClientConfiguration(),
-        null
-    )
-
-    /**
-     * @param config REST Client configuration
-     * @param handler Jersey client handler. Useful when plugging in various http client interaction
-     * modules (e.g. ribbon)
-     */
-    constructor(config: ClientConfig, handler: ClientHandler?) : this(
-        config,
-        DefaultConductorClientConfiguration(),
-        handler
-    )
-
-    /**
-     * @param config REST Client configuration
      * @param handler Jersey client handler. Useful when plugging in various http client interaction
      * modules (e.g. ribbon)
      * @param filters Chain of client side filters to be applied per request
      */
-    constructor(config: ClientConfig, handler: ClientHandler?, vararg filters: ClientFilter) : this(
+    constructor(config: ClientConfig, handler: ClientHandler? = null, vararg filters: ClientFilter) : this(
         config,
         DefaultConductorClientConfiguration(),
         handler,
@@ -226,7 +206,11 @@ open class JerseyWorkflowClient : WorkflowClient {
     override suspend fun deleteWorkflow(workflowId: String, archiveWorkflow: Boolean) {
         Validate.notBlank(workflowId, "Workflow id cannot be blank")
         val params = arrayOf<Any?>("archiveWorkflow", archiveWorkflow)
-        jerseyBaseClient.delete(queryParams = params, url = "workflow/{workflowId}/remove", uriVariables = arrayOf(workflowId))
+        jerseyBaseClient.delete(
+            queryParams = params,
+            url = "workflow/{workflowId}/remove",
+            uriVariables = arrayOf(workflowId)
+        )
     }
 
     override suspend fun terminateWorkflows(workflowIds: List<String?>, reason: String): BulkResponse? {

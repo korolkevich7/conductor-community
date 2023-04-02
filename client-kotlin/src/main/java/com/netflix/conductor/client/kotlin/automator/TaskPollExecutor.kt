@@ -62,7 +62,7 @@ internal class TaskPollExecutor(
         val taskType: String = worker.taskDefName
         val pollingSemaphore: PollingSemaphore? = getPollingSemaphore(taskType)
         val slotsToAcquire: Int = pollingSemaphore?.availableSlots() ?: 0
-        if (slotsToAcquire <= 0 || !pollingSemaphore!!.acquireSlots(slotsToAcquire)) {
+        if (slotsToAcquire <= 0 || !(pollingSemaphore ?: return).acquireSlots(slotsToAcquire)) {
             return
         }
         var acquiredTasks = 0
@@ -264,7 +264,7 @@ internal class TaskPollExecutor(
             task.taskId,
             worker.javaClass.simpleName,
             worker.identity,
-            result!!.status
+            (result ?: return).status
         )
         launch {
             updateTaskResult(updateRetryCount, task, result, worker)
@@ -450,6 +450,5 @@ internal class TaskPollExecutor(
     }
 
     private val job = Job()
-    override val coroutineContext: CoroutineContext
-        get() = Dispatchers.Default + job
+    override val coroutineContext: CoroutineContext get() = Dispatchers.Default + job
 }

@@ -24,8 +24,8 @@ open class JerseyClientRequestHandler(
         } else {
             Client(handler, config)
         }
-        for (filter in filters) {
-            client.addFilter(filter)
+        filters.forEach {
+            client.addFilter(it)
         }
     }
 

@@ -39,7 +39,7 @@ class JerseyMetadataClientTest : JerseyClientTest() {
         Mockito.`when`(requestHandler.delete(uri, null)).thenThrow(RuntimeException())
 
         val exception = assertThrows<ConductorClientException> {
-            runBlocking{
+            runBlocking {
                 metadataClient.unregisterWorkflowDef(workflowName, version)
             }
         }
@@ -52,7 +52,7 @@ class JerseyMetadataClientTest : JerseyClientTest() {
     @Test
     fun workflowDeleteNameMissing(): Unit = runBlocking {
         assertThrows<IllegalArgumentException> {
-            runBlocking{
+            runBlocking {
                 metadataClient.unregisterWorkflowDef("   ", 1)
             }
         }

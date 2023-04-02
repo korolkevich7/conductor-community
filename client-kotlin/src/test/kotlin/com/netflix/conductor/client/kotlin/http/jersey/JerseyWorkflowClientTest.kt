@@ -40,10 +40,11 @@ class JerseyWorkflowClientTest : JerseyClientTest() {
         Mockito.verify(requestHandler, Mockito.times(1))
             .get(uri)
 
-        assertTrue { searchResult?.totalHits == result.totalHits
-                && searchResult.results?.isNotEmpty() == true
-                && searchResult.results?.size == 1
-                && searchResult.results?.get(0) is WorkflowSummary
+        assertTrue {
+            searchResult?.totalHits == result.totalHits
+                    && searchResult.results?.isNotEmpty() == true
+                    && searchResult.results?.size == 1
+                    && searchResult.results?.get(0) is WorkflowSummary
         }
     }
 
@@ -65,10 +66,11 @@ class JerseyWorkflowClientTest : JerseyClientTest() {
         Mockito.verify(requestHandler, Mockito.times(1))
             .get(uri)
 
-        assertTrue { searchResult?.totalHits == result.totalHits
-                && searchResult.results?.isNotEmpty() == true
-                && searchResult.results?.size == 1
-                && searchResult.results?.get(0) is Workflow
+        assertTrue {
+            searchResult?.totalHits == result.totalHits
+                    && searchResult.results?.isNotEmpty() == true
+                    && searchResult.results?.size == 1
+                    && searchResult.results?.get(0) is Workflow
         }
     }
 
@@ -94,10 +96,11 @@ class JerseyWorkflowClientTest : JerseyClientTest() {
         Mockito.verify(requestHandler, Mockito.times(1))
             .get(uri)
 
-        assertTrue { searchResult?.totalHits == result.totalHits
-                && searchResult.results?.isNotEmpty() == true
-                && searchResult.results?.size == 1
-                && searchResult.results?.get(0) is WorkflowSummary
+        assertTrue {
+            searchResult?.totalHits == result.totalHits
+                    && searchResult.results?.isNotEmpty() == true
+                    && searchResult.results?.size == 1
+                    && searchResult.results?.get(0) is WorkflowSummary
         }
     }
 
@@ -123,10 +126,11 @@ class JerseyWorkflowClientTest : JerseyClientTest() {
         Mockito.verify(requestHandler, Mockito.times(1))
             .get(uri)
 
-        assertTrue { searchResult?.totalHits == result.totalHits
-                && searchResult.results?.isNotEmpty() == true
-                && searchResult.results?.size == 1
-                && searchResult.results?.get(0) is Workflow
+        assertTrue {
+            searchResult?.totalHits == result.totalHits
+                    && searchResult.results?.isNotEmpty() == true
+                    && searchResult.results?.size == 1
+                    && searchResult.results?.get(0) is Workflow
         }
     }
 }

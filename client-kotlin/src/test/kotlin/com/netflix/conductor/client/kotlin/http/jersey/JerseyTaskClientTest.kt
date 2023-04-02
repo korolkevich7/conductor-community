@@ -41,7 +41,8 @@ class JerseyTaskClientTest : JerseyClientTest() {
         Mockito.verify(requestHandler, Mockito.times(1))
             .get(uri)
 
-        assertTrue { searchResult?.totalHits == result.totalHits
+        assertTrue {
+            searchResult?.totalHits == result.totalHits
                     && searchResult.results?.isNotEmpty() == true
                     && searchResult.results?.size == 1
                     && searchResult.results?.get(0) is TaskSummary
@@ -63,10 +64,11 @@ class JerseyTaskClientTest : JerseyClientTest() {
 
         val searchResult = taskClient.searchV2("my_complex_query")
 
-        assertTrue { searchResult?.totalHits == result.totalHits
-                && searchResult.results?.isNotEmpty() == true
-                && searchResult.results?.size == 1
-                && searchResult.results?.get(0) is Task
+        assertTrue {
+            searchResult?.totalHits == result.totalHits
+                    && searchResult.results?.isNotEmpty() == true
+                    && searchResult.results?.size == 1
+                    && searchResult.results?.get(0) is Task
         }
     }
 
@@ -89,10 +91,11 @@ class JerseyTaskClientTest : JerseyClientTest() {
 
         val searchResult: SearchResult<TaskSummary>? = taskClient.search(start, size, sort, freeText, query)
 
-        assertTrue { searchResult?.totalHits == result.totalHits
-                && searchResult.results?.isNotEmpty() == true
-                && searchResult.results?.size == 1
-                && searchResult.results?.get(0) is TaskSummary
+        assertTrue {
+            searchResult?.totalHits == result.totalHits
+                    && searchResult.results?.isNotEmpty() == true
+                    && searchResult.results?.size == 1
+                    && searchResult.results?.get(0) is TaskSummary
         }
     }
 
@@ -115,10 +118,11 @@ class JerseyTaskClientTest : JerseyClientTest() {
 
         val searchResult: SearchResult<Task>? = taskClient.searchV2(start, size, sort, freeText, query)
 
-        assertTrue { searchResult?.totalHits == result.totalHits
-                && searchResult.results?.isNotEmpty() == true
-                && searchResult.results?.size == 1
-                && searchResult.results?.get(0) is Task
+        assertTrue {
+            searchResult?.totalHits == result.totalHits
+                    && searchResult.results?.isNotEmpty() == true
+                    && searchResult.results?.size == 1
+                    && searchResult.results?.get(0) is Task
         }
     }
 }

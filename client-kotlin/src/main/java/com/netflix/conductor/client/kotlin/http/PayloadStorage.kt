@@ -23,8 +23,7 @@ class PayloadStorage(private val clientBase: BaseClient) :
 
     private val job = Job()
 
-    override val coroutineContext: CoroutineContext
-        get() = Dispatchers.Default + job
+    override val coroutineContext: CoroutineContext get() = Dispatchers.Default + job
 
     /**
      * This method is not intended to be used in the client. The client makes a request to the
@@ -34,10 +33,10 @@ class PayloadStorage(private val clientBase: BaseClient) :
         operation: ExternalPayloadStorage.Operation, payloadType: ExternalPayloadStorage.PayloadType, path: String
     ): ExternalStorageLocation {
         val uri: String = when (payloadType) {
-                ExternalPayloadStorage.PayloadType.WORKFLOW_INPUT, ExternalPayloadStorage.PayloadType.WORKFLOW_OUTPUT -> "workflow"
-                ExternalPayloadStorage.PayloadType.TASK_INPUT, ExternalPayloadStorage.PayloadType.TASK_OUTPUT -> "tasks"
-                else -> throw ConductorClientException("Invalid payload type: $payloadType for operation: $operation")
-            }
+            ExternalPayloadStorage.PayloadType.WORKFLOW_INPUT, ExternalPayloadStorage.PayloadType.WORKFLOW_OUTPUT -> "workflow"
+            ExternalPayloadStorage.PayloadType.TASK_INPUT, ExternalPayloadStorage.PayloadType.TASK_OUTPUT -> "tasks"
+            else -> throw ConductorClientException("Invalid payload type: $payloadType for operation: $operation")
+        }
 
         var storageLocation: ExternalStorageLocation? = null
         launch {

@@ -23,32 +23,12 @@ open class JerseyMetadataClient : MetadataClient {
     )
 
     /**
-     * @param clientConfig REST Client configuration
-     */
-    constructor(clientConfig: ClientConfig) : this(
-        clientConfig,
-        DefaultConductorClientConfiguration(),
-        null
-    )
-
-    /**
-     * @param clientConfig REST Client configuration
-     * @param clientHandler Jersey client handler. Useful when plugging in various http client
-     * interaction modules (e.g. ribbon)
-     */
-    constructor(clientConfig: ClientConfig, clientHandler: ClientHandler?) : this(
-        clientConfig,
-        DefaultConductorClientConfiguration(),
-        clientHandler
-    )
-
-    /**
      * @param config config REST Client configuration
      * @param handler handler Jersey client handler. Useful when plugging in various http client
      * interaction modules (e.g. ribbon)
      * @param filters Chain of client side filters to be applied per request
      */
-    constructor(config: ClientConfig, handler: ClientHandler?, vararg filters: ClientFilter) : this(
+    constructor(config: ClientConfig, handler: ClientHandler? = null, vararg filters: ClientFilter) : this(
         config,
         DefaultConductorClientConfiguration(),
         handler,

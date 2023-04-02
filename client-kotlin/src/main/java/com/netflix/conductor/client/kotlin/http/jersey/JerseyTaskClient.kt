@@ -40,31 +40,11 @@ open class JerseyTaskClient : TaskClient {
 
     /**
      * @param config REST Client configuration
-     */
-    constructor(config: ClientConfig) : this(
-        config,
-        DefaultConductorClientConfiguration(),
-        null
-    )
-
-    /**
-     * @param config REST Client configuration
-     * @param handler Jersey client handler. Useful when plugging in various http client interaction
-     * modules (e.g. ribbon)
-     */
-    constructor(config: ClientConfig, handler: ClientHandler?) : this(
-        config,
-        DefaultConductorClientConfiguration(),
-        handler
-    )
-
-    /**
-     * @param config REST Client configuration
      * @param handler Jersey client handler. Useful when plugging in various http client interaction
      * modules (e.g. ribbon)
      * @param filters Chain of client side filters to be applied per request
      */
-    constructor(config: ClientConfig, handler: ClientHandler?, vararg filters: ClientFilter) : this(
+    constructor(config: ClientConfig, handler: ClientHandler? = null, vararg filters: ClientFilter) : this(
         config,
         DefaultConductorClientConfiguration(),
         handler,
@@ -119,7 +99,8 @@ open class JerseyTaskClient : TaskClient {
         val params = arrayOf<Any?>(
             "workerid", workerId, "count", count, "timeout", timeoutInMillisecond
         )
-        val tasks: List<Task>? = jerseyBaseClient.getForEntity("tasks/poll/batch/{taskType}", params, taskList, taskType)
+        val tasks: List<Task>? =
+            jerseyBaseClient.getForEntity("tasks/poll/batch/{taskType}", params, taskList, taskType)
         tasks?.forEach(Consumer { task: Task ->
             populateTaskPayloads(
                 task
@@ -144,7 +125,8 @@ open class JerseyTaskClient : TaskClient {
             "domain",
             domain
         )
-        val tasks: List<Task>? = jerseyBaseClient.getForEntity("tasks/poll/batch/{taskType}", params, taskList, taskType)
+        val tasks: List<Task>? =
+            jerseyBaseClient.getForEntity("tasks/poll/batch/{taskType}", params, taskList, taskType)
         tasks?.forEach(Consumer { task: Task ->
             populateTaskPayloads(
                 task

@@ -21,28 +21,12 @@ open class JerseyEventClient : EventClient {
     constructor() : this(DefaultClientConfig(), DefaultConductorClientConfiguration(), null)
 
     /**
-     * @param clientConfig REST Client configuration
-     */
-    constructor(clientConfig: ClientConfig) : this(clientConfig, DefaultConductorClientConfiguration(), null)
-
-    /**
-     * @param clientConfig REST Client configuration
-     * @param clientHandler Jersey client handler. Useful when plugging in various http client
-     * interaction modules (e.g. ribbon)
-     */
-    constructor(clientConfig: ClientConfig, clientHandler: ClientHandler?) : this(
-        clientConfig,
-        DefaultConductorClientConfiguration(),
-        clientHandler
-    )
-
-    /**
      * @param config config REST Client configuration
      * @param handler handler Jersey client handler. Useful when plugging in various http client
      * interaction modules (e.g. ribbon)
      * @param filters Chain of client side filters to be applied per request
      */
-    constructor(config: ClientConfig, handler: ClientHandler?, vararg filters: ClientFilter) : this(
+    constructor(config: ClientConfig, handler: ClientHandler? = null, vararg filters: ClientFilter) : this(
         config,
         DefaultConductorClientConfiguration(),
         handler,
@@ -76,14 +60,16 @@ open class JerseyEventClient : EventClient {
      *
      * @param eventHandler the eventHandler definition
      */
-    override suspend fun registerEventHandler(eventHandler: EventHandler) = jerseyBaseClient.postForEntityWithRequestOnly("event", eventHandler)
+    override suspend fun registerEventHandler(eventHandler: EventHandler) =
+        jerseyBaseClient.postForEntityWithRequestOnly("event", eventHandler)
 
     /**
      * Updates an event handler with the server
      *
      * @param eventHandler the eventHandler definition
      */
-    override suspend fun updateEventHandler(eventHandler: EventHandler) = jerseyBaseClient.put("event", null, eventHandler)
+    override suspend fun updateEventHandler(eventHandler: EventHandler) =
+        jerseyBaseClient.put("event", null, eventHandler)
 
     /**
      * @param event name of the event
@@ -94,7 +80,7 @@ open class JerseyEventClient : EventClient {
         Validate.notBlank(event, "Event cannot be blank")
         return jerseyBaseClient.getForEntity(
             "event/{event}", arrayOf("activeOnly", activeOnly), Constants.eventHandlerList, event
-        )?:Collections.emptyList()
+        ) ?: Collections.emptyList()
     }
 
     /**

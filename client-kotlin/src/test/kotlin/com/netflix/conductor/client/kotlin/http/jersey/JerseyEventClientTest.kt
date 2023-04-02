@@ -78,6 +78,6 @@ class JerseyEventClientTest : JerseyClientTest() {
         Mockito.verify(requestHandler, Mockito.times(1))
             .get(uri)
 
-        assertTrue{ eventHandlers.size == 2}
+        assertTrue { eventHandlers.size == 2 }
     }
 }
