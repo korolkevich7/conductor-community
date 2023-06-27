@@ -24,7 +24,7 @@ dependencies {
 
     implementation "com.nhaarman:mockito-kotlin:${revMockitoKotlin}"
 
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:${revCoroutines}"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:${revCoroutines}"
 
     compileOnly 'org.jetbrains:annotations:23.0.0'
 

@@ -1,13 +1,13 @@
 package com.netflix.conductor.client.kotlin.automator
 
+import kotlinx.coroutines.sync.Semaphore
 import org.slf4j.LoggerFactory
-import java.util.concurrent.Semaphore
 
 /**
  * A class wrapping a semaphore which holds the number of permits available for polling and
  * executing tasks.
  */
-class PollingSemaphore(numSlots: Int) {
+class CoroutinePollingSemaphore(numSlots: Int) {
     private val semaphore: Semaphore
 
     init {
@@ -18,7 +18,7 @@ class PollingSemaphore(numSlots: Int) {
     /** Signals that processing is complete and the specified number of permits can be released.  */
     fun complete(numSlots: Int) {
         LOGGER.debug("Completed execution; releasing permit")
-        semaphore.release(numSlots)
+        repeat(numSlots) { semaphore.release() }
     }
 
     /**
@@ -27,7 +27,7 @@ class PollingSemaphore(numSlots: Int) {
      * @return number of available permits
      */
     fun availableSlots(): Int {
-        val available = semaphore.availablePermits()
+        val available = semaphore.availablePermits
         LOGGER.debug("Number of available permits: {}", available)
         return available
     }
@@ -40,12 +40,19 @@ class PollingSemaphore(numSlots: Int) {
      * @return `true` - if permit is acquired `false` - if permit could not be acquired
      */
     fun acquireSlots(numSlots: Int): Boolean {
-        val acquired = semaphore.tryAcquire(numSlots)
-        LOGGER.debug("Trying to acquire {} permit: {}", numSlots, acquired)
-        return acquired
+        if (semaphore.availablePermits < numSlots) return false
+        var acquireCount = 0
+        repeat(numSlots) {
+            if (semaphore.tryAcquire()) acquireCount++ else {
+                complete(acquireCount)
+                return false
+            }
+        }
+        LOGGER.debug("Trying to acquire {} permit: {}", numSlots, acquireCount)
+        return true
     }
 
     companion object {
-        private val LOGGER = LoggerFactory.getLogger(PollingSemaphore::class.java)
+        private val LOGGER = LoggerFactory.getLogger(CoroutinePollingSemaphore::class.java)
     }
 }

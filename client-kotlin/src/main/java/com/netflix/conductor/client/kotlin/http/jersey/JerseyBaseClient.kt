@@ -5,11 +5,7 @@ import com.netflix.conductor.client.kotlin.exception.ConductorClientException
 import com.netflix.conductor.client.kotlin.http.BaseClient
 import com.netflix.conductor.common.model.BulkResponse
 import com.netflix.conductor.common.validation.ErrorResponse
-import com.sun.jersey.api.client.ClientHandlerException
-import com.sun.jersey.api.client.ClientResponse
-import com.sun.jersey.api.client.GenericType
-import com.sun.jersey.api.client.UniformInterfaceException
-import com.sun.jersey.api.client.WebResource
+import com.sun.jersey.api.client.*
 import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.net.URI

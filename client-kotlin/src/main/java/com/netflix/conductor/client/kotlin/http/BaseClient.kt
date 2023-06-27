@@ -1,6 +1,7 @@
 package com.netflix.conductor.client.kotlin.http
 
 import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.cfg.PackageVersion
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
@@ -23,15 +24,16 @@ abstract class BaseClient protected constructor(
     clientConfiguration: ConductorClientConfiguration?
 ) {
     protected var root = ""
-    internal var objectMapper: ObjectMapper = ObjectMapperProvider().objectMapper
+    protected var objectMapper: ObjectMapper = ObjectMapperProvider().objectMapper
     protected var payloadStorage: PayloadStorage
-    internal var conductorClientConfiguration: ConductorClientConfiguration
+    protected var conductorClientConfiguration: ConductorClientConfiguration
 
     init {
         // https://github.com/FasterXML/jackson-databind/issues/2683
         if (isNewerJacksonVersion) {
             objectMapper.registerModule(JavaTimeModule())
         }
+        objectMapper.configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true)
         conductorClientConfiguration = clientConfiguration ?: DefaultConductorClientConfiguration()
         payloadStorage = PayloadStorage(this)
     }

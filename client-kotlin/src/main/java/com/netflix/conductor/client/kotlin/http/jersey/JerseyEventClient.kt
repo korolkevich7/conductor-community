@@ -9,7 +9,7 @@ import com.sun.jersey.api.client.config.ClientConfig
 import com.sun.jersey.api.client.config.DefaultClientConfig
 import com.sun.jersey.api.client.filter.ClientFilter
 import org.apache.commons.lang3.Validate
-import java.util.Collections
+import java.util.*
 
 
 // Client class for all Event Handler operations
