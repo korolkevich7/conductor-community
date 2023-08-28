@@ -1,172 +1,48 @@
 package com.netflix.conductor.client.kotlin.http
 
-import com.amazonaws.util.IOUtils
-import com.netflix.conductor.client.kotlin.exception.ConductorClientException
 import com.netflix.conductor.common.run.ExternalStorageLocation
-import com.netflix.conductor.common.utils.ExternalPayloadStorage
-import kotlinx.coroutines.*
-import org.slf4j.LoggerFactory
-import java.io.BufferedOutputStream
-import java.io.IOException
 import java.io.InputStream
-import java.net.HttpURLConnection
-import java.net.MalformedURLException
-import java.net.URI
-import java.net.URISyntaxException
-import javax.ws.rs.core.Response
-import kotlin.coroutines.CoroutineContext
 
 
-/** An implementation of [ExternalPayloadStorage] for storing large JSON payload data.  */
-class PayloadStorage(private val clientBase: BaseClient) :
-    ExternalPayloadStorage, CoroutineScope {
+interface PayloadStorage {
+    enum class Operation {
+        READ,
+        WRITE
+    }
 
-    private val job = Job()
-
-    override val coroutineContext: CoroutineContext get() = Dispatchers.Default + job
-
-    /**
-     * This method is not intended to be used in the client. The client makes a request to the
-     * server to get the [ExternalStorageLocation]
-     */
-    override fun getLocation(
-        operation: ExternalPayloadStorage.Operation, payloadType: ExternalPayloadStorage.PayloadType, path: String
-    ): ExternalStorageLocation {
-        val uri: String = when (payloadType) {
-            ExternalPayloadStorage.PayloadType.WORKFLOW_INPUT, ExternalPayloadStorage.PayloadType.WORKFLOW_OUTPUT -> "workflow"
-            ExternalPayloadStorage.PayloadType.TASK_INPUT, ExternalPayloadStorage.PayloadType.TASK_OUTPUT -> "tasks"
-            else -> throw ConductorClientException("Invalid payload type: $payloadType for operation: $operation")
-        }
-
-        var storageLocation: ExternalStorageLocation? = null
-        launch {
-            val storageLocationDeferred = async {
-                clientBase.getForEntity(
-                    "$uri/externalstoragelocation", arrayOf(
-                        "path",
-                        path,
-                        "operation",
-                        operation.toString(),
-                        "payloadType",
-                        payloadType.toString()
-                    ),
-                    ExternalStorageLocation::class.java
-                )
-            }
-            storageLocation = storageLocationDeferred.await()
-        }
-
-        return storageLocation ?: throw ConductorClientException("ExternalStorageLocation not found")
-
+    enum class PayloadType {
+        WORKFLOW_INPUT,
+        WORKFLOW_OUTPUT,
+        TASK_INPUT,
+        TASK_OUTPUT
     }
 
     /**
-     * Uploads the payload to the uri specified.
+     * Obtain a uri used to store/access a json payload in external storage.
      *
-     * @param uri the location to which the object is to be uploaded
+     * @param operation the type of [Operation] to be performed with the uri
+     * @param payloadType the [PayloadType] that is being accessed at the uri
+     * @param path (optional) the relative path for which the external storage location object is to
+     * be populated. If path is not specified, it will be computed and populated.
+     * @return a [ExternalStorageLocation] object which contains the uri and the path for the
+     * json payload
+     */
+    suspend fun getLocation(operation: Operation?, payloadType: PayloadType?, path: String?): ExternalStorageLocation
+
+    /**
+     * Upload a json payload to the specified external storage location.
+     *
+     * @param path the location to which the object is to be uploaded
      * @param payload an [InputStream] containing the json payload which is to be uploaded
      * @param payloadSize the size of the json payload in bytes
-     * @throws ConductorClientException if the upload fails due to an invalid path or an error from
-     * external storage
      */
-    override fun upload(uri: String, payload: InputStream, payloadSize: Long) {
-        var connection: HttpURLConnection? = null
-        try {
-            val url = URI(uri).toURL()
-            connection = url.openConnection() as HttpURLConnection
-            connection.doOutput = true
-            connection.requestMethod = "PUT"
-            BufferedOutputStream(connection.outputStream).use { bufferedOutputStream ->
-                val count = IOUtils.copy(payload, bufferedOutputStream)
-                bufferedOutputStream.flush()
-                // Check the HTTP response code
-                val responseCode = connection.responseCode
-                if (Response.Status.fromStatusCode(responseCode).family
-                    != Response.Status.Family.SUCCESSFUL
-                ) {
-                    val errorMsg = "Unable to upload. Response code: $responseCode"
-                    LOGGER.error(errorMsg)
-                    throw ConductorClientException(errorMsg)
-                }
-                LOGGER.debug(
-                    "Uploaded {} bytes to uri: {}, with HTTP response code: {}",
-                    count,
-                    uri,
-                    responseCode
-                )
-            }
-        } catch (e: URISyntaxException) {
-            val errorMsg = "Invalid path specified: $uri"
-            LOGGER.error(errorMsg, e)
-            throw ConductorClientException(errorMsg, e)
-        } catch (e: MalformedURLException) {
-            val errorMsg = "Invalid path specified: $uri"
-            LOGGER.error(errorMsg, e)
-            throw ConductorClientException(errorMsg, e)
-        } catch (e: IOException) {
-            val errorMsg = "Error uploading to path: $uri"
-            LOGGER.error(errorMsg, e)
-            throw ConductorClientException(errorMsg, e)
-        } finally {
-            connection?.disconnect()
-            try {
-                if (payload != null) {
-                    payload.close()
-                }
-            } catch (e: IOException) {
-                LOGGER.warn("Unable to close inputstream when uploading to uri: {}", uri)
-            }
-        }
-    }
+    suspend fun upload(path: String, payload: ByteArray, payloadSize: Long)
 
     /**
-     * Downloads the payload from the given uri.
+     * Download the json payload from the specified external storage location.
      *
-     * @param uri the location from where the object is to be downloaded
-     * @return an inputstream of the payload in the external storage
-     * @throws ConductorClientException if the download fails due to an invalid path or an error
-     * from external storage
+     * @param path the location from where the object is to be downloaded
+     * @return an [InputStream] of the json payload at the specified location
      */
-    override fun download(uri: String): InputStream {
-        var connection: HttpURLConnection? = null
-        var errorMsg: String
-        try {
-            val url = URI(uri).toURL()
-            connection = url.openConnection() as HttpURLConnection
-            connection.doOutput = false
-
-            // Check the HTTP response code
-            val responseCode = connection.responseCode
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                LOGGER.debug(
-                    "Download completed with HTTP response code: {}",
-                    connection.responseCode
-                )
-                return org.apache.commons.io.IOUtils.toBufferedInputStream(
-                    connection.inputStream
-                )
-            }
-            errorMsg = "Unable to download. Response code: $responseCode"
-            LOGGER.error(errorMsg)
-            throw ConductorClientException(errorMsg)
-        } catch (e: URISyntaxException) {
-            errorMsg = "Invalid uri specified: $uri"
-            LOGGER.error(errorMsg, e)
-            throw ConductorClientException(errorMsg, e)
-        } catch (e: MalformedURLException) {
-            errorMsg = "Invalid uri specified: $uri"
-            LOGGER.error(errorMsg, e)
-            throw ConductorClientException(errorMsg, e)
-        } catch (e: IOException) {
-            errorMsg = "Error downloading from uri: $uri"
-            LOGGER.error(errorMsg, e)
-            throw ConductorClientException(errorMsg, e)
-        } finally {
-            connection?.disconnect()
-        }
-    }
-
-    companion object {
-        private val LOGGER = LoggerFactory.getLogger(PayloadStorage::class.java)
-    }
+    suspend fun download(path: String): ByteArray?
 }

@@ -5,7 +5,7 @@ import com.netflix.conductor.common.metadata.workflow.WorkflowDef
 
 interface MetadataClient {
 
-    fun setRootURI(root: String)
+    var rootURI: String
 
     /**
      * Register a workflow definition with the server
@@ -30,7 +30,7 @@ interface MetadataClient {
      * @param version the version of the workflow def
      * @return Workflow definition for the given workflow and version
      */
-    suspend fun getWorkflowDef(name: String, version: Int?): WorkflowDef?
+    suspend fun getWorkflowDef(name: String, version: Int?): WorkflowDef
 
     /**
      * Removes the workflow definition of a workflow from the conductor server. It does not remove

@@ -4,7 +4,7 @@ package com.netflix.conductor.client.kotlin.config
  * A default implementation of [ConductorClientConfiguration] where external payload storage
  * is disabled.
  */
-class DefaultConductorClientConfiguration : ConductorClientConfiguration {
+object DefaultConductorClientConfiguration : ConductorClientConfiguration {
 
     override fun getWorkflowInputPayloadThresholdKB(): Int = 5120
 

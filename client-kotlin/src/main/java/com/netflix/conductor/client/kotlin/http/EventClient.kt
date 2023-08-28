@@ -4,8 +4,7 @@ import com.netflix.conductor.common.metadata.events.EventHandler
 
 /** Client for all Event Handler operations  */
 interface EventClient {
-
-    fun setRootURI(root: String)
+    var rootURI: String
 
     /**
      * Register an event handler with the server

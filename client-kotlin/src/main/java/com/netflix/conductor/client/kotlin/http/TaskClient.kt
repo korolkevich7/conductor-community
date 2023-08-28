@@ -11,8 +11,7 @@ import com.netflix.conductor.common.utils.ExternalPayloadStorage
 
 /** Client for conductor task management including polling for task, updating task status etc.  */
 interface TaskClient {
-
-    fun setRootURI(root: String)
+    var rootURI: String
 
     /**
      * Perform a poll for a task of a specific task type.
@@ -63,8 +62,8 @@ interface TaskClient {
      */
     suspend fun updateTask(taskResult: TaskResult)
 
-    fun evaluateAndUploadLargePayload(
-        taskOutputData: Map<String?, Any?>?, taskType: String
+    suspend fun evaluateAndUploadLargePayload(
+        taskOutputData: Map<String, Any?>, taskType: String
     ): String?
 
     /**
@@ -83,7 +82,7 @@ interface TaskClient {
      * @param taskId id of the task
      * @param logMessage the message to be logged
      */
-    suspend fun logMessageForTask(taskId: String, logMessage: String?)
+    suspend fun logMessageForTask(taskId: String, logMessage: String)
 
 
     /**
@@ -99,7 +98,7 @@ interface TaskClient {
      * @param taskId ID of the task
      * @return Task details
      */
-    suspend fun getTaskDetails(taskId: String): Task?
+    suspend fun getTaskDetails(taskId: String): Task
 
     /**
      * Removes a task from a taskType queue
@@ -135,7 +134,7 @@ interface TaskClient {
      *
      * @return returns the number of tasks that have been requeued
      */
-    suspend fun requeueAllPendingTasks(): String?
+    suspend fun requeueAllPendingTasks(): String
 
     /**
      * Requeue pending tasks of a specific task type
@@ -151,7 +150,7 @@ interface TaskClient {
      * @return returns the [SearchResult] containing the [TaskSummary] matching the
      * query
      */
-    suspend fun search(query: String): SearchResult<TaskSummary>?
+    suspend fun search(query: String): SearchResult<TaskSummary>
 
     /**
      * Search for tasks based on payload
@@ -159,7 +158,7 @@ interface TaskClient {
      * @param query the search string
      * @return returns the [SearchResult] containing the [Task] matching the query
      */
-    suspend fun searchV2(query: String): SearchResult<Task>?
+    suspend fun searchV2(query: String): SearchResult<Task>
 
     /**
      * Paginated search for tasks based on payload
@@ -173,7 +172,7 @@ interface TaskClient {
      */
     suspend fun search(
         start: Int, size: Int, sort: String, freeText: String, query: String
-    ): SearchResult<TaskSummary>?
+    ): SearchResult<TaskSummary>
 
     /**
      * Paginated search for tasks based on payload
@@ -187,5 +186,5 @@ interface TaskClient {
      */
     suspend fun searchV2(
         start: Int, size: Int, sort: String, freeText: String, query: String
-    ): SearchResult<Task>?
+    ): SearchResult<Task>
 }

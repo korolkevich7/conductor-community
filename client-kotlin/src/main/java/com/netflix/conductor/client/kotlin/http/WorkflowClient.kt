@@ -12,7 +12,7 @@ import com.netflix.conductor.common.utils.ExternalPayloadStorage
 
 interface WorkflowClient {
 
-    fun setRootURI(root: String)
+    var rootURI: String
 
     /**
      * Starts a workflow. If the size of the workflow input payload is bigger than [ ][ConductorClientConfiguration.getWorkflowInputPayloadThresholdKB], it is uploaded to [ ], if enabled, else the workflow is rejected.
@@ -24,7 +24,7 @@ interface WorkflowClient {
      * @throws NullPointerException if [StartWorkflowRequest] is null or [     ][StartWorkflowRequest.getName] is null.
      * @throws IllegalArgumentException if [StartWorkflowRequest.getName] is empty.
      */
-    suspend fun startWorkflow(startWorkflowRequest: StartWorkflowRequest): String?
+    suspend fun startWorkflow(startWorkflowRequest: StartWorkflowRequest): String
 
     /**
      * Retrieve a workflow by workflow id
@@ -33,7 +33,7 @@ interface WorkflowClient {
      * @param includeTasks specify if the tasks in the workflow need to be returned
      * @return the requested workflow
      */
-    suspend fun getWorkflow(workflowId: String, includeTasks: Boolean): Workflow?
+    suspend fun getWorkflow(workflowId: String, includeTasks: Boolean): Workflow
 
     /**
      * Retrieve all workflows for a given correlation id and name
@@ -63,7 +63,7 @@ interface WorkflowClient {
      * @param reason the reason to be logged and displayed
      * @return the [BulkResponse] contains bulkErrorResults and bulkSuccessfulResults
      */
-    suspend fun terminateWorkflows(workflowIds: List<String?>, reason: String): BulkResponse?
+    suspend fun terminateWorkflows(workflowIds: List<String>, reason: String): BulkResponse?
 
     /**
      * Retrieve all running workflow instances for a given name and version
@@ -124,7 +124,7 @@ interface WorkflowClient {
      * @param rerunWorkflowRequest the request containing the task to rerun from
      * @return the id of the workflow
      */
-    suspend fun rerunWorkflow(workflowId: String, rerunWorkflowRequest: RerunWorkflowRequest): String?
+    suspend fun rerunWorkflow(workflowId: String, rerunWorkflowRequest: RerunWorkflowRequest): String
 
     /**
      * Restart a completed workflow
@@ -164,7 +164,7 @@ interface WorkflowClient {
      * @param query the search query
      * @return the [SearchResult] containing the [WorkflowSummary] that match the query
      */
-    suspend fun search(query: String): SearchResult<WorkflowSummary>?
+    suspend fun search(query: String): SearchResult<WorkflowSummary>
 
     /**
      * Search for workflows based on payload
@@ -172,7 +172,7 @@ interface WorkflowClient {
      * @param query the search query
      * @return the [SearchResult] containing the [Workflow] that match the query
      */
-    suspend fun searchV2(query: String): SearchResult<Workflow>?
+    suspend fun searchV2(query: String): SearchResult<Workflow>
 
     /**
      * Paginated search for workflows based on payload
@@ -186,7 +186,7 @@ interface WorkflowClient {
      */
     suspend fun search(
         start: Int, size: Int, sort: String, freeText: String, query: String
-    ): SearchResult<WorkflowSummary>?
+    ): SearchResult<WorkflowSummary>
 
     /**
      * Paginated search for workflows based on payload
@@ -200,5 +200,5 @@ interface WorkflowClient {
      */
     suspend fun searchV2(
         start: Int, size: Int, sort: String, freeText: String, query: String
-    ): SearchResult<Workflow>?
+    ): SearchResult<Workflow>
 }

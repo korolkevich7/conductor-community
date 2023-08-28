@@ -4,21 +4,22 @@ import com.netflix.appinfo.InstanceInfo
 import com.netflix.conductor.client.kotlin.config.PropertyFactory
 import com.netflix.conductor.client.kotlin.http.TaskClient
 import com.netflix.conductor.client.kotlin.telemetry.MetricsContainer
+import com.netflix.conductor.client.kotlin.telemetry.record
 import com.netflix.conductor.client.kotlin.worker.Worker
 import com.netflix.conductor.common.metadata.tasks.Task
 import com.netflix.conductor.common.metadata.tasks.TaskResult
 import com.netflix.discovery.EurekaClient
 import kotlinx.coroutines.*
-import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.time.StopWatch
 import org.slf4j.LoggerFactory
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.util.*
-import java.util.concurrent.*
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
+import kotlin.time.measureTimedValue
 
 /**
  * Manages the threadpool used by the workers for execution and server communication (polling and
@@ -37,10 +38,11 @@ internal class TaskPollExecutor(
     // todo: переделать на chanel
     private var leaseExtendMap: MutableMap<String, Job> = ConcurrentHashMap()
 
-    @OptIn(ExperimentalTime::class, ExperimentalCoroutinesApi::class)
+    @OptIn(ExperimentalTime::class)
     suspend fun pollAndExecute(worker: Worker) {
-        val discoveryOverride = PropertyFactory.getBoolean(worker.taskDefName, OVERRIDE_DISCOVERY, null)
-                ?: PropertyFactory.getBoolean(ALL_WORKERS, OVERRIDE_DISCOVERY, false)
+        val identity: String = worker.identity ?: throw IllegalStateException("Worker identity cannot be null")
+
+        val discoveryOverride = isDiscoveryOverride(worker.taskDefName)
 
         if (eurekaClient != null && eurekaClient.instanceRemoteStatus != InstanceInfo.InstanceStatus.UP
                 && !discoveryOverride
@@ -50,54 +52,44 @@ internal class TaskPollExecutor(
         }
         if (worker.paused()) {
             MetricsContainer.incrementTaskPausedCount(worker.taskDefName)
-            LOGGER.debug("Worker {} has been paused. Not polling anymore!", worker.javaClass)
+            LOGGER.debug("Worker ${worker.javaClass} has been paused. Not polling anymore!")
             return
         }
         val taskType: String = worker.taskDefName
-        val coroutinePollingSemaphore: CoroutinePollingSemaphore? = getPollingSemaphore(taskType)
-        val slotsToAcquire: Int = coroutinePollingSemaphore?.availableSlots() ?: 0
-        if (slotsToAcquire <= 0 || !(coroutinePollingSemaphore ?: return).acquireSlots(slotsToAcquire)) {
+        val coroutinePollingSemaphore: CoroutinePollingSemaphore = getPollingSemaphore(taskType) ?: return
+        val slotsToAcquire: Int = coroutinePollingSemaphore.availableSlots()
+        if (slotsToAcquire <= 0 || !coroutinePollingSemaphore.acquireSlots(slotsToAcquire)) {
             return
         }
         var acquiredTasks = 0
         try {
-            val domain = PropertyFactory.getString(taskType, DOMAIN, null)
-                    ?: (PropertyFactory.getString(ALL_WORKERS, DOMAIN, null) ?: taskToDomain[taskType])
+            val domain = taskDomain(taskType)
 
-            LOGGER.debug("Polling task of type: {} in domain: '{}'", taskType, domain)
-
-            val tasks: List<Task> = MetricsContainer.getPollTimer(taskType)
-                    .record(Callable {
-                        // todo сделать из оригинальных threadpull
-                        CoroutineScope(Dispatchers.IO).async(CoroutineName(workerNamePrefix)) {
-                            taskClient.batchPollTasksInDomain(
-                                    taskType,
-                                    domain,
-                                    worker.identity,
-                                    slotsToAcquire,
-                                    worker.batchPollTimeoutInMS
-                            )
-                        }.getCompleted()
-                    })
+            LOGGER.debug("Polling task of type: $taskType in domain: '$domain'")
+            val (tasks, duration) = measureTimedValue {
+                taskClient.batchPollTasksInDomain(
+                    taskType,
+                    domain,
+                    identity,
+                    slotsToAcquire,
+                    worker.batchPollTimeoutInMS
+                )
+            }
+            MetricsContainer.getPollTimer(taskType).record(duration)
 
             acquiredTasks = tasks.size
 
             for (task: Task in tasks) {
-                if (Objects.nonNull(task) && StringUtils.isNotBlank(task.taskId)) {
+                if (task.taskId.isNotBlank()) {
                     MetricsContainer.incrementTaskPollCount(taskType, 1)
                     LOGGER.debug(
-                            "Polled task: {} of type: {} in domain: '{}', from worker: {}",
-                            task.taskId,
-                            taskType,
-                            domain,
-                            worker.identity
-                    )
+                            "Polled task: ${task.taskId} of type: $taskType in domain: '$domain', from worker: ${worker.identity}")
 
                     val taskDeferred = CoroutineScope(Dispatchers.IO).async(CoroutineName(workerNamePrefix)) {
                         processTask(task, worker, coroutinePollingSemaphore)
                     }
 
-                    if (task.responseTimeoutSeconds > 0 && worker.leaseExtendEnabled()) {
+                    if (task.responseTimeoutSeconds > 0 && worker.leaseExtendEnabled) {
 
                         val interval = (task.responseTimeoutSeconds * LEASE_EXTEND_DURATION_FACTOR).seconds
                         val leaseExtendJob = CoroutineScope(Dispatchers.IO).timer(interval, interval, Dispatchers.IO)
@@ -106,7 +98,21 @@ internal class TaskPollExecutor(
                         leaseExtendMap[task.taskId] = leaseExtendJob
                     }
 
-                    if (taskDeferred.isCompleted) finalizeTask(taskDeferred.getCompleted(), taskDeferred.getCompletionExceptionOrNull())
+                    try {
+                        val processedTask = taskDeferred.await()
+                        finalizeTask(processedTask)
+                    } catch (e: Exception) {
+                        //TODO all catches
+                        LOGGER.error(
+                            "Error processing task: ${task.taskId} of type: ${task.taskType}",
+                            e
+                        )
+                        MetricsContainer.incrementTaskExecutionErrorCount(
+                            task.taskType,
+                            e
+                        )
+                    }
+
 
                 } else {
                     // no task was returned in the poll, release the permit
@@ -126,10 +132,10 @@ internal class TaskPollExecutor(
     }
 
     fun shutdown(timeout: Int) {
-        TODO("сделать потом")
+        TODO()
 //        shutdownAndAwaitTermination(executorService, timeout)
 //        shutdownAndAwaitTermination(leaseExtendExecutorService, timeout)
-//        leaseExtendMap.clear()
+        leaseExtendMap.clear()
     }
 
     fun shutdownAndAwaitTermination(executorService: ExecutorCoroutineDispatcher, timeout: Int) {
@@ -154,8 +160,9 @@ internal class TaskPollExecutor(
         MetricsContainer.incrementUncaughtExceptionCount()
         LOGGER.error("Uncaught exception. Thread {} will exit now", thread, error)
     }
-val handler = CoroutineExceptionHandler{_,exception ->
-
+val handler = CoroutineExceptionHandler{context, exception ->
+    MetricsContainer.incrementUncaughtExceptionCount()
+    LOGGER.error("Uncaught exception. Thread $context will exit now", exception)
 }
     init {
         coroutinePollingSemaphoreMap = HashMap<String, CoroutinePollingSemaphore>()
@@ -171,7 +178,7 @@ val handler = CoroutineExceptionHandler{_,exception ->
 //        ThreadPoolMonitor.attach(REGISTRY, executorService, workerNamePrefix)
     }
 
-    private fun processTask(
+    private suspend fun processTask(
             task: Task,
             worker: Worker,
             coroutinePollingSemaphore: CoroutinePollingSemaphore?
@@ -195,7 +202,7 @@ val handler = CoroutineExceptionHandler{_,exception ->
         return task
     }
 
-    private fun executeTask(worker: Worker, task: Task) {
+    private suspend fun executeTask(worker: Worker, task: Task) {
         val stopwatch = StopWatch()
         stopwatch.start()
         var result: TaskResult? = null
@@ -239,31 +246,18 @@ val handler = CoroutineExceptionHandler{_,exception ->
         }
     }
 
-    private fun finalizeTask(task: Task, throwable: Throwable?) {
-        if (throwable != null) {
-            LOGGER.error(
-                    "Error processing task: {} of type: {}",
-                    task.taskId,
-                    task.taskType,
-                    throwable
-            )
-            MetricsContainer.incrementTaskExecutionErrorCount(
-                    task.taskType,
-                    throwable
-            )
-        } else {
-            LOGGER.debug(
-                    "Task:{} of type:{} finished processing with status:{}",
-                    task.taskId,
-                    task.taskDefName,
-                    task.status
-            )
-            val taskId = task.taskId
-            val leaseExtendJob = leaseExtendMap[taskId]
-            if (leaseExtendJob != null) {
-                leaseExtendJob.cancel()
-                leaseExtendMap.remove(taskId)
-            }
+    private fun finalizeTask(task: Task) {
+        LOGGER.debug(
+            "Task:{} of type:{} finished processing with status:{}",
+            task.taskId,
+            task.taskDefName,
+            task.status
+        )
+        val taskId = task.taskId
+        val leaseExtendJob = leaseExtendMap[taskId]
+        if (leaseExtendJob != null) {
+            leaseExtendJob.cancel()
+            leaseExtendMap.remove(taskId)
         }
     }
 
@@ -303,11 +297,11 @@ val handler = CoroutineExceptionHandler{_,exception ->
                     worker.taskDefName,
                     e
             )
-            LOGGER.error("Failed to update result: ${result.toString()} for task: ${task.taskDefName} in worker: ${worker.identity}", e)
+            LOGGER.error("Failed to update result: $result for task: ${task.taskDefName} in worker: ${worker.identity}", e)
         }
     }
 
-    private fun upload(result: TaskResult, taskType: String): String? {
+    private suspend fun upload(result: TaskResult, taskType: String): String? {
         return try {
             taskClient.evaluateAndUploadLargePayload(result.outputData, taskType)
         } catch (iae: IllegalArgumentException) {
@@ -341,7 +335,7 @@ val handler = CoroutineExceptionHandler{_,exception ->
             worker: Worker,
             task: Task
     ) {
-        LOGGER.error(String.format("Error while executing task %s", task.toString()), t)
+        LOGGER.error("Error while executing task $task", t)
         MetricsContainer.incrementTaskExecutionErrorCount(
                 worker.taskDefName,
                 t
@@ -363,12 +357,10 @@ val handler = CoroutineExceptionHandler{_,exception ->
     private suspend fun extendLease(task: Task, taskDeferred: Deferred<Task>) {
         if (taskDeferred.isCompleted) {
             LOGGER.warn(
-                    "Task processing for {} completed, but its lease extend was not cancelled",
-                    task.taskId
-            )
+                    "Task processing for ${task.taskId} completed, but its lease extend was not cancelled")
             return
         }
-        LOGGER.info("Attempting to extend lease for {}", task.taskId)
+        LOGGER.info("Attempting to extend lease for ${task.taskId}")
         try {
             val result = TaskResult(task)
             result.isExtendLease = true
@@ -390,8 +382,19 @@ val handler = CoroutineExceptionHandler{_,exception ->
                     task.taskDefName,
                     e
             )
-            LOGGER.error("Failed to extend lease for {}", task.taskId, e)
+            LOGGER.error("Failed to extend lease for ${task.taskId}", e)
         }
+    }
+
+    private fun isDiscoveryOverride(taskDefName: String): Boolean {
+        return PropertyFactory.getBoolean(taskDefName, OVERRIDE_DISCOVERY, null)
+            ?: PropertyFactory.getBoolean(ALL_WORKERS, OVERRIDE_DISCOVERY, false)
+    }
+
+    private fun taskDomain(taskType: String): String? {
+        return PropertyFactory.getString(taskType, DOMAIN, null)
+            ?: (PropertyFactory.getString(ALL_WORKERS, DOMAIN, null)
+                ?: taskToDomain[taskType])
     }
 
     companion object {

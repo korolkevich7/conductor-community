@@ -53,6 +53,7 @@ ext {
     revTestContainer = '1.17.2'
     revDynoQueues = '2.0.20'
     revLog4J= '2.17.1!!'
+    revKtor = '2.3.3'
 }
 
 
