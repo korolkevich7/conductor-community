@@ -16,7 +16,7 @@ import io.ktor.client.request.*
 import org.slf4j.LoggerFactory
 import java.io.IOException
 
-class KtorTaskClient(override var rootURI: String): TaskClient, KtorBaseClient(rootURI) {
+class KtorTaskClient(override val rootURI: String): TaskClient, KtorBaseClient(rootURI) {
     companion object {
         const val TASK_ID_NOT_BLANK = "Task id cannot be blank"
         const val TASK_TYPE_NOT_BLANK = "Task type cannot be blank"

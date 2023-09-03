@@ -1,25 +1,29 @@
 package com.netflix.conductor.client.kotlin.automator
 
-import com.netflix.conductor.client.kotlin.exception.ConductorClientException
 import com.netflix.conductor.client.kotlin.http.TaskClient
 import com.netflix.conductor.client.kotlin.worker.Worker
+import com.netflix.conductor.common.metadata.tasks.Task
 import com.netflix.discovery.EurekaClient
+import io.github.oshai.kotlinlogging.KotlinLogging
+import io.ktor.utils.io.core.*
 import kotlinx.coroutines.*
-import org.apache.commons.lang3.Validate
-import org.slf4j.LoggerFactory
-import java.util.*
-import java.util.function.Consumer
-import java.util.stream.Collectors
-import kotlin.time.DurationUnit
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.produce
+import kotlinx.coroutines.flow.*
+import kotlin.time.Duration.Companion.microseconds
 import kotlin.time.ExperimentalTime
-import kotlin.time.toDuration
 
+
+private val logger = KotlinLogging.logger {}
 
 /** Configures automated polling of tasks and execution via the registered [Worker]s.  */
 class TaskRunnerConfigurer private constructor(builder: Builder) {
-    private val eurekaClient: EurekaClient
+    private val eurekaClient: EurekaClient?
     private val taskClient: TaskClient
-    private val workers: MutableList<Worker> = LinkedList()
+    private val workers: MutableList<Worker> = mutableListOf()
+    //TODO: from property
+    private val leaseThreadCount: Int = 2
 
     /**
      * @return sleep time in millisecond before task update retry is done when receiving error from
@@ -34,13 +38,6 @@ class TaskRunnerConfigurer private constructor(builder: Builder) {
     val updateRetryCount: Int
 
     /**
-     * @return Thread Count for the shared executor pool
-     */
-    @get:Deprecated("")
-    @Deprecated("")
-    var threadCount = 0
-
-    /**
      * @return seconds before forcing shutdown of worker
      */
     val shutdownGracePeriodSeconds: Int
@@ -51,14 +48,12 @@ class TaskRunnerConfigurer private constructor(builder: Builder) {
     val workerNamePrefix: String
     private val taskToDomain: Map<String, String>
 
-
-    private val workerJobsMap: MutableMap<String, Job> = HashMap()
+    private val taskPollExecutor: TaskPollExecutor
 
     /**
      * @return Thread Count for individual task type
      */
-    var taskThreadCount: MutableMap<String, Int>
-    private var taskPollExecutor: TaskPollExecutor? = null
+    val taskThreadCount: MutableMap<String, Int>
 
     /**
      * @see Builder
@@ -66,60 +61,110 @@ class TaskRunnerConfigurer private constructor(builder: Builder) {
      * @see TaskRunnerConfigurer.init
      */
     init {
-        // only allow either shared thread pool or per task thread pool
-        if (builder.threadCount != -1 && builder.taskThreadCount.isNotEmpty()) {
-            LOGGER.error(INVALID_THREAD_COUNT)
-            throw ConductorClientException(INVALID_THREAD_COUNT)
-        } else if (builder.taskThreadCount.isNotEmpty()) {
-            for (worker in builder.workers) {
-                if (!builder.taskThreadCount.containsKey(worker.taskDefName)) {
-                    LOGGER.info(
-                            "No thread count specified for task type {}, default to 1 thread",
-                            worker.taskDefName)
-                    builder.taskThreadCount[worker.taskDefName] = 1
+        require(builder.taskThreadCount.isNotEmpty()) { "Task thread map should not be empty" }
+
+        for (worker in builder.workers) {
+            if (!builder.taskThreadCount.containsKey(worker.taskDefName)) {
+                logger.warn {
+                    "No thread count specified for task type ${worker.taskDefName}, default to 1 thread"
                 }
-                workers.add(worker)
+                builder.taskThreadCount[worker.taskDefName] = 1
             }
-            taskThreadCount = builder.taskThreadCount
-            threadCount = -1
-        } else {
-            val taskTypes: MutableSet<String> = HashSet()
-            for (worker in builder.workers) {
-                taskTypes.add(worker.taskDefName)
-                workers.add(worker)
-            }
-            threadCount = if (builder.threadCount == -1) workers.size else builder.threadCount
-            // shared thread pool will be evenly split between task types
-            val splitThreadCount = threadCount / taskTypes.size
-            taskThreadCount = taskTypes.stream().collect(Collectors.toMap({ v: String? -> v }, { v: String? -> splitThreadCount }))
+            workers.add(worker)
         }
-        eurekaClient = builder.eurekaClient!!
+        taskThreadCount = builder.taskThreadCount
+        eurekaClient = builder.eurekaClient
         taskClient = builder.taskClient
         sleepWhenRetry = builder.sleepWhenRetry
         updateRetryCount = builder.updateRetryCount
         workerNamePrefix = builder.workerNamePrefix
         taskToDomain = builder.taskToDomain
         shutdownGracePeriodSeconds = builder.shutdownGracePeriodSeconds
+
+        taskPollExecutor = TaskPollExecutor(
+            eurekaClient,
+            taskClient,
+            updateRetryCount,
+            taskToDomain,
+            leaseThreadCount)
+    }
+
+    /**
+     * Starts the polling. Must be called after [Builder.build] method.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    @Synchronized
+    fun init() {
+        val workersDispatcher = newFixedThreadPoolContext(workers.size, "$workerNamePrefix-worker-poll-context")
+        workers.forEach { startWorkerWithChannel(it, workersDispatcher) }
+        //workers.forEach { startWorker(it, workersDispatcher) }
+    }
+
+    private fun startWorkerWithChannel(worker: Worker, workersDispatcher: CoroutineDispatcher) {
+        val workerScope = CoroutineScope(workersDispatcher + SupervisorJob())
+        val taskChannel: ReceiveChannel<Task> = workerScope.produce(capacity = worker.batchPollCount) {
+            val pollingResult = runCatching { taskPollExecutor.poll(worker) }
+            pollingResult.getOrNull()?.forEach { send(it) }
+        }
+
+        workerScope.launch {
+            for (task in taskChannel) {
+                val taskPair = taskPollExecutor.processTask(worker, task)
+                taskPollExecutor.updateTaskResult(taskPair.first, taskPair.second, worker)
+            }
+        }
+    }
+
+    private fun startWorker(worker: Worker, workersDispatcher: CoroutineDispatcher) {
+        val taskDispatcher = Dispatchers.IO.limitedParallelism(worker.threads)
+        // = newFixedThreadPoolContext(worker.threads, "${worker.taskDefName}-context")
+        val workerScope = CoroutineScope(
+            workersDispatcher +
+                    SupervisorJob() +
+                    CoroutineName("Task ${worker.taskDefName} context"))
+        val flow = workerScope.taskComputation(taskPollExecutor, worker)
+            .map {
+                taskPollExecutor.processTask(worker, it) }
+            .catch { TODO("timeout") }
+            .onEach { taskPollExecutor.updateTaskResult(it.first, it.second, worker) }
+            .catch { TODO("unexpected errors") }
+            .flowOn(taskDispatcher)
+
+        CoroutineScope(SupervisorJob()).launch(workersDispatcher) {
+            flow.collect()
+        }
+    }
+
+    @OptIn(ExperimentalTime::class)
+    fun CoroutineScope.taskComputation(executor: TaskPollExecutor, worker: Worker): Flow<Task> = flow {
+        timerExact(interval = worker.batchPollTimeoutInMS.microseconds) {
+            emitAll(executor.poll(worker).asFlow())
+        }
+    }.buffer(worker.batchPollCount, onBufferOverflow = BufferOverflow.SUSPEND)
+
+    /**
+     * Invoke this method within a PreDestroy block within your application to facilitate a graceful
+     * shutdown of your worker, during process termination.
+     */
+    fun shutdown() {
+        TODO("maybe not needed")
+        taskPollExecutor.shutdown(shutdownGracePeriodSeconds)
     }
 
     /** Builder used to create the instances of TaskRunnerConfigurer  */
-    class Builder(taskClient: TaskClient, workers: Iterable<Worker>) {
+    class Builder(taskClient: TaskClient, workers: Collection<Worker>) {
         var workerNamePrefix = "workflow-worker-%d"
         var sleepWhenRetry = 500
         var updateRetryCount = 3
-
-        @Deprecated("")
-        var threadCount = -1
         var shutdownGracePeriodSeconds = 10
-        val workers: Iterable<Worker>
+        val workers: Collection<Worker>
         var eurekaClient: EurekaClient? = null
         val taskClient: TaskClient
-        var taskToDomain: Map<String, String> = HashMap()
+        var taskToDomain: Map<String, String> = mapOf()
         var taskThreadCount: MutableMap<String, Int> = HashMap()
 
         init {
-            Validate.notNull(taskClient, "TaskClient cannot be null")
-            Validate.notNull(workers, "Workers cannot be null")
+            require(workers.isNotEmpty()) { "Workers cannot be empty" }
             this.taskClient = taskClient
             this.workers = workers
         }
@@ -155,18 +200,6 @@ class TaskRunnerConfigurer private constructor(builder: Builder) {
         }
 
         /**
-         * @param threadCount # of threads assigned to the workers. Should be at-least the size of
-         * taskWorkers to avoid starvation in a busy system.
-         * @return Builder instance
-         */
-        @Deprecated("Use {@link Builder#withTaskThreadCount(Map)} instead.")
-        fun withThreadCount(threadCount: Int): Builder {
-            require(threadCount >= 1) { "No. of threads cannot be less than 1" }
-            this.threadCount = threadCount
-            return this
-        }
-
-        /**
          * @param shutdownGracePeriodSeconds waiting seconds before forcing shutdown of your worker
          * @return Builder instance
          */
@@ -182,7 +215,7 @@ class TaskRunnerConfigurer private constructor(builder: Builder) {
          * null, discovery check is not done.
          * @return Builder instance
          */
-        fun withEurekaClient(eurekaClient: EurekaClient?): Builder {
+        fun withEurekaClient(eurekaClient: EurekaClient): Builder {
             this.eurekaClient = eurekaClient
             return this
         }
@@ -209,39 +242,4 @@ class TaskRunnerConfigurer private constructor(builder: Builder) {
         }
     }
 
-    /**
-     * Starts the polling. Must be called after [Builder.build] method.
-     */
-    @OptIn(ExperimentalTime::class)
-    @Synchronized
-    fun init() {
-
-        taskPollExecutor = TaskPollExecutor(
-                eurekaClient,
-                taskClient,
-                updateRetryCount,
-                taskToDomain,
-                workerNamePrefix,
-                taskThreadCount)
-        workers.forEach(
-                Consumer { worker: Worker ->
-                    CoroutineScope(Dispatchers.IO).launch {
-                        val interval = worker.pollingInterval.toDuration(DurationUnit.MILLISECONDS)
-                        timer(interval, interval, Dispatchers.IO) { taskPollExecutor!!.pollAndExecute(worker) }
-                    }
-                })
-    }
-
-    /**
-     * Invoke this method within a PreDestroy block within your application to facilitate a graceful
-     * shutdown of your worker, during process termination.
-     */
-    fun shutdown() {
-        taskPollExecutor?.shutdown(shutdownGracePeriodSeconds)
-    }
-
-    companion object {
-        private val LOGGER = LoggerFactory.getLogger(TaskRunnerConfigurer::class.java)
-        private const val INVALID_THREAD_COUNT = "Invalid worker thread count specified, use either shared thread pool or config thread count per task"
-    }
 }

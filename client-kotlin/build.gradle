@@ -10,7 +10,6 @@ buildscript {
     }
 }
 
-apply plugin: 'groovy'
 apply plugin: 'kotlin'
 
 configurations.all {
@@ -50,6 +49,7 @@ dependencies {
     implementation "commons-io:commons-io:${revCommonsIo}"
 
     implementation "org.slf4j:slf4j-api"
+    implementation "io.github.oshai:kotlin-logging-jvm:${revKotlinLogging}"
 
     testImplementation "org.powermock:powermock-module-junit4:${revPowerMock}"
     testImplementation "org.powermock:powermock-api-mockito2:${revPowerMock}"
@@ -57,4 +57,7 @@ dependencies {
     testImplementation "org.codehaus.groovy:groovy-all:${revGroovy}"
     testImplementation "org.spockframework:spock-core:${revSpock}"
     testImplementation "org.spockframework:spock-spring:${revSpock}"
+
+    testImplementation "org.jetbrains.kotlin:kotlin-test:${revKotlin}"
+    testImplementation "org.jetbrains.kotlin:kotlin-test-junit5:${revKotlin}"
 }
