@@ -89,6 +89,12 @@ interface Worker {
     val batchPollTimeoutInMS: Int
         get() = PropertyFactory.getInteger(taskDefName, "batchPollTimeoutInMS", 1000)
 
+    val batchPollCount: Int
+        get() = PropertyFactory.getInteger(taskDefName, "batchPollCount", 10)
+
+    val threads: Int
+        get() = PropertyFactory.getInteger(taskDefName, "threads", 10)
+
     companion object {
         @JvmStatic
         fun create(taskType: String, executor: Function<Task, TaskResult>): Worker {

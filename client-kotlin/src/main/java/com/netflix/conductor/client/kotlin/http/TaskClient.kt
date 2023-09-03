@@ -11,7 +11,7 @@ import com.netflix.conductor.common.utils.ExternalPayloadStorage
 
 /** Client for conductor task management including polling for task, updating task status etc.  */
 interface TaskClient {
-    var rootURI: String
+    val rootURI: String
 
     /**
      * Perform a poll for a task of a specific task type.

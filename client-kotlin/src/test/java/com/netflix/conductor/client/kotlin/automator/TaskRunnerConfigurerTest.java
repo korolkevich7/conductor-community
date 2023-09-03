@@ -38,7 +38,6 @@ public class TaskRunnerConfigurerTest {
         taskThreadCount.put(worker1.getTaskDefName(), 2);
         taskThreadCount.put(worker2.getTaskDefName(), 3);
         new TaskRunnerConfigurer.Builder(client, Arrays.asList(worker1, worker2))
-                .withThreadCount(10)
                 .withTaskThreadCount(taskThreadCount)
                 .build();
     }
@@ -72,44 +71,8 @@ public class TaskRunnerConfigurerTest {
                         .withTaskThreadCount(taskThreadCount)
                         .build();
         configurer.init();
-        assertEquals(-1, configurer.getThreadCount());
         assertEquals(2, configurer.getTaskThreadCount().get("task1").intValue());
         assertEquals(3, configurer.getTaskThreadCount().get("task2").intValue());
-    }
-
-    @Test
-    public void testSharedThreadPool() {
-        Worker worker = Worker.create(TEST_TASK_DEF_NAME, TaskResult::new);
-        TaskRunnerConfigurer configurer =
-                new TaskRunnerConfigurer.Builder(client, Arrays.asList(worker, worker, worker))
-                        .build();
-        configurer.init();
-        assertEquals(3, configurer.getThreadCount());
-        assertEquals(500, configurer.getSleepWhenRetry());
-        assertEquals(3, configurer.getUpdateRetryCount());
-        assertEquals(10, configurer.getShutdownGracePeriodSeconds());
-        assertFalse(configurer.getTaskThreadCount().isEmpty());
-        assertEquals(1, configurer.getTaskThreadCount().size());
-        assertEquals(3, configurer.getTaskThreadCount().get(TEST_TASK_DEF_NAME).intValue());
-
-        configurer =
-                new TaskRunnerConfigurer.Builder(client, Collections.singletonList(worker))
-                        .withThreadCount(100)
-                        .withSleepWhenRetry(100)
-                        .withUpdateRetryCount(10)
-                        .withShutdownGracePeriodSeconds(15)
-                        .withWorkerNamePrefix("test-worker-")
-                        .build();
-        assertEquals(100, configurer.getThreadCount());
-        configurer.init();
-        assertEquals(100, configurer.getThreadCount());
-        assertEquals(100, configurer.getSleepWhenRetry());
-        assertEquals(10, configurer.getUpdateRetryCount());
-        assertEquals(15, configurer.getShutdownGracePeriodSeconds());
-        assertEquals("test-worker-", configurer.getWorkerNamePrefix());
-        assertFalse(configurer.getTaskThreadCount().isEmpty());
-        assertEquals(1, configurer.getTaskThreadCount().size());
-        assertEquals(100, configurer.getTaskThreadCount().get(TEST_TASK_DEF_NAME).intValue());
     }
 
     private Task testTask(String taskDefName) {
