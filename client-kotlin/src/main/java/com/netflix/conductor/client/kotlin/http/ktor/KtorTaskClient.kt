@@ -13,8 +13,7 @@ import com.netflix.conductor.common.run.TaskSummary
 import com.netflix.conductor.common.utils.ExternalPayloadStorage
 import io.ktor.client.call.*
 import io.ktor.client.request.*
-import org.slf4j.LoggerFactory
-import java.io.IOException
+import io.ktor.utils.io.errors.IOException
 
 class KtorTaskClient(override val rootURI: String): TaskClient, KtorBaseClient(rootURI) {
     companion object {
@@ -22,8 +21,6 @@ class KtorTaskClient(override val rootURI: String): TaskClient, KtorBaseClient(r
         const val TASK_TYPE_NOT_BLANK = "Task type cannot be blank"
         const val WORKER_ID_NOT_BLANK = "Worker id cannot be blank"
         const val COUNT_CONDITION = "Count must be greater than 0"
-
-        private val LOGGER = LoggerFactory.getLogger(KtorBaseClient::class.java)
     }
     override suspend fun pollTask(taskType: String, workerId: String, domain: String): Task {
         require(taskType.isNotBlank()) { TASK_TYPE_NOT_BLANK }
@@ -114,9 +111,7 @@ class KtorTaskClient(override val rootURI: String): TaskClient, KtorBaseClient(r
             }
             return null
         } catch (e: IOException) {
-            val errorMsg = "Unable to update task: $taskType with task result"
-            LOGGER.error(errorMsg, e)
-            throw ConductorClientException(errorMsg, e)
+            throw ConductorClientException("Unable to update task: $taskType with task result", e)
         }
     }
 

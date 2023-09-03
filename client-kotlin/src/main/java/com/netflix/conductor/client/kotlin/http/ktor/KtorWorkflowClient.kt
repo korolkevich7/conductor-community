@@ -13,13 +13,9 @@ import com.netflix.conductor.common.run.WorkflowSummary
 import com.netflix.conductor.common.utils.ExternalPayloadStorage
 import io.ktor.client.call.*
 import io.ktor.client.request.*
-import org.slf4j.LoggerFactory
-import java.io.IOException
+import io.ktor.utils.io.errors.*
 
 class KtorWorkflowClient(override var rootURI: String): WorkflowClient, KtorBaseClient(rootURI) {
-    companion object {
-        private val LOGGER = LoggerFactory.getLogger(KtorWorkflowClient::class.java)
-    }
 
     override suspend fun startWorkflow(startWorkflowRequest: StartWorkflowRequest): String {
         require(startWorkflowRequest.name.isNotBlank()) { "Workflow name cannot be null or empty" }
@@ -276,14 +272,11 @@ class KtorWorkflowClient(override var rootURI: String): WorkflowClient, KtorBase
                 startWorkflowRequest.input = null
             }
         } catch (e: IOException) {
-            //TODO delete logging
-            val errorMsg = "Unable to start workflow:${startWorkflowRequest.name}, version:$version"
-            LOGGER.error(errorMsg, e)
             MetricsContainer.incrementWorkflowStartErrorCount(
                 startWorkflowRequest.name,
                 e
             )
-            throw ConductorClientException(errorMsg, e)
+            throw ConductorClientException("Unable to start workflow:${startWorkflowRequest.name}, version:$version", e)
         }
     }
 }

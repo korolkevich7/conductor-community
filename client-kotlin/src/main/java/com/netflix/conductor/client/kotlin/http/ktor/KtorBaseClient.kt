@@ -9,12 +9,12 @@ import com.netflix.conductor.client.kotlin.http.PayloadStorage
 import com.netflix.conductor.common.run.ExternalStorageLocation
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
+import io.ktor.utils.io.errors.*
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
-import org.slf4j.LoggerFactory
-import java.io.IOException
 import java.time.Duration
 import java.util.concurrent.TimeUnit
+
 
 open class KtorBaseClient(open val rootURI: String, val httpClient: HttpClient) {
     constructor(rootURI: String) : this(rootURI, createOkHttpClient() )
@@ -36,9 +36,7 @@ open class KtorBaseClient(open val rootURI: String, val httpClient: HttpClient) 
             val bytes = payloadStorage.download(externalStorageLocation.uri)
             return objectMapper.readValue(bytes, typeRef)
         } catch (e: IOException) {
-            val errorMsg = "Unable to download payload from external storage location: $path"
-            LOGGER.error(errorMsg, e)
-            throw ConductorClientException(errorMsg, e)
+            throw ConductorClientException("Unable to download payload from external storage location: $path", e)
         }
     }
 
@@ -60,9 +58,6 @@ open class KtorBaseClient(open val rootURI: String, val httpClient: HttpClient) 
         return externalStorageLocation.path
     }
 
-    companion object {
-        private val LOGGER = LoggerFactory.getLogger(KtorBaseClient::class.java)
-    }
 }
 
 fun createOkHttpClient(): HttpClient {
