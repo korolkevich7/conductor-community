@@ -16,8 +16,7 @@ import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 
-open class KtorBaseClient(open val rootURI: String, val httpClient: HttpClient) {
-    constructor(rootURI: String) : this(rootURI, createOkHttpClient() )
+open class KtorBaseClient(val rootURI: String, val httpClient: HttpClient) {
 
     private val payloadStorage: PayloadStorage = PayloadStorageImpl(rootURI, httpClient)
 

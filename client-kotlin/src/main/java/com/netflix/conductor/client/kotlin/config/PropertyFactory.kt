@@ -70,14 +70,14 @@ class PropertyFactory private constructor(prefix: String, propName: String, work
             return getPropertyFactory(workerName, property).getBoolean() ?: defaultValue
         }
 
-        @JvmStatic
+//        @JvmStatic
         fun getString(workerName: String, property: String, defaultValue: String? = null): String? {
             return getPropertyFactory(workerName, property).getString() ?: defaultValue
         }
 
-        fun getString(workerName: String, property: String, defaultValue: String): String {
-            return getPropertyFactory(workerName, property).getString() ?: defaultValue
-        }
+//        fun getString(workerName: String, property: String, defaultValue: String): String {
+//            return getPropertyFactory(workerName, property).getString() ?: defaultValue
+//        }
 
         private fun getPropertyFactory(workerName: String, property: String): PropertyFactory {
             val key = "$property.$workerName"

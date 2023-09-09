@@ -12,7 +12,7 @@ import com.netflix.conductor.common.utils.ExternalPayloadStorage
 
 interface WorkflowClient {
 
-    var rootURI: String
+    val rootURI: String
 
     /**
      * Starts a workflow. If the size of the workflow input payload is bigger than [ ][ConductorClientConfiguration.getWorkflowInputPayloadThresholdKB], it is uploaded to [ ], if enabled, else the workflow is rejected.

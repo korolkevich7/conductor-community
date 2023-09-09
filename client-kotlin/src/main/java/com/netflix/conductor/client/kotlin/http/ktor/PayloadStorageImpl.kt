@@ -8,7 +8,7 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 
-class PayloadStorageImpl(val rootURI: String, val httpClient: HttpClient): PayloadStorage {
+class PayloadStorageImpl(val rootURI: String, private val httpClient: HttpClient): PayloadStorage {
     override suspend fun getLocation(
         operation: PayloadStorage.Operation?,
         payloadType: PayloadStorage.PayloadType?,

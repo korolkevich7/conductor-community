@@ -5,7 +5,7 @@ import com.netflix.conductor.common.metadata.workflow.WorkflowDef
 
 interface MetadataClient {
 
-    var rootURI: String
+    val rootURI: String
 
     /**
      * Register a workflow definition with the server

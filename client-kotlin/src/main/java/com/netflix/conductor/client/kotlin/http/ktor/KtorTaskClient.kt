@@ -11,11 +11,12 @@ import com.netflix.conductor.common.metadata.tasks.TaskResult
 import com.netflix.conductor.common.run.SearchResult
 import com.netflix.conductor.common.run.TaskSummary
 import com.netflix.conductor.common.utils.ExternalPayloadStorage
+import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.utils.io.errors.IOException
 
-class KtorTaskClient(override val rootURI: String): TaskClient, KtorBaseClient(rootURI) {
+class KtorTaskClient(rootURI: String, httpClient: HttpClient): TaskClient, KtorBaseClient(rootURI, httpClient) {
     companion object {
         const val TASK_ID_NOT_BLANK = "Task id cannot be blank"
         const val TASK_TYPE_NOT_BLANK = "Task type cannot be blank"
@@ -222,10 +223,10 @@ class KtorTaskClient(override val rootURI: String): TaskClient, KtorBaseClient(r
     ): SearchResult<TaskSummary> {
         val response = httpClient.post {
             url("$rootURI/tasks/search")
-            parameter("start", query)
-            parameter("size", query)
-            parameter("sort", query)
-            parameter("freeText", query)
+            parameter("start", start)
+            parameter("size", size)
+            parameter("sort", sort)
+            parameter("freeText", freeText)
             parameter("query", query)
         }
         return response.body()
@@ -248,10 +249,10 @@ class KtorTaskClient(override val rootURI: String): TaskClient, KtorBaseClient(r
     ): SearchResult<Task> {
         val response = httpClient.post {
             url("$rootURI/tasks/search-v2")
-            parameter("start", query)
-            parameter("size", query)
-            parameter("sort", query)
-            parameter("freeText", query)
+            parameter("start", start)
+            parameter("size", size)
+            parameter("sort", sort)
+            parameter("freeText", freeText)
             parameter("query", query)
         }
         return response.body()

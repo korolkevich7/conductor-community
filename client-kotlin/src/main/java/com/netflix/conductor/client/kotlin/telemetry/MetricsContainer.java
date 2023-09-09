@@ -1,5 +1,4 @@
 /*
- * Copyright 2020 Netflix, Inc.
  * <p>
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -12,15 +11,15 @@
  */
 package com.netflix.conductor.client.kotlin.telemetry;
 
-import com.netflix.spectator.api.*;
-import com.netflix.spectator.api.patterns.PolledMeter;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+
+import com.netflix.spectator.api.*;
+import com.netflix.spectator.api.patterns.PolledMeter;
 
 public class MetricsContainer {
 

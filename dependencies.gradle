@@ -2,8 +2,7 @@
  * Common place to define all the version dependencies
  */
 ext {
-    revKotlin = '1.8.20'
-    kotlin_version = "1.8.20"
+    revKotlin = '1.7.10'
     revCoroutines = '1.7.1'
     revMockitoKotlin = '1.6.0'
     revConductor = '3.13.2'

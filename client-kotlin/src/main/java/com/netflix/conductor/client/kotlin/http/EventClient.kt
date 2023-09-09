@@ -4,7 +4,7 @@ import com.netflix.conductor.common.metadata.events.EventHandler
 
 /** Client for all Event Handler operations  */
 interface EventClient {
-    var rootURI: String
+    val rootURI: String
 
     /**
      * Register an event handler with the server

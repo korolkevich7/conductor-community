@@ -1,25 +1,59 @@
-package com.netflix.conductor.client.kotlin.http.jersey
+package com.netflix.conductor.client.kotlin.http.ktor
 
 import com.netflix.conductor.client.kotlin.http.WorkflowClient
-import com.netflix.conductor.client.kotlin.http.jersey.JerseyWorkflowClient.Companion.searchResultWorkflow
-import com.netflix.conductor.client.kotlin.http.jersey.JerseyWorkflowClient.Companion.searchResultWorkflowSummary
+import com.netflix.conductor.common.metadata.workflow.WorkflowDef
 import com.netflix.conductor.common.run.SearchResult
 import com.netflix.conductor.common.run.Workflow
 import com.netflix.conductor.common.run.WorkflowSummary
-import com.nhaarman.mockito_kotlin.mock
-import com.sun.jersey.api.client.ClientResponse
+import io.ktor.client.engine.mock.*
+import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
-import org.mockito.Mockito
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 import kotlin.test.assertTrue
 
-class JerseyWorkflowClientTest : JerseyClientTest() {
-    private var workflowClient: WorkflowClient = JerseyWorkflowClient(requestHandler)
+class KtorWorkflowClientTest : KtorClientTest() {
+    private lateinit var workflowClient: WorkflowClient
 
-    @BeforeEach
+    @BeforeTest
     fun setup() {
-        workflowClient.setRootURI(ROOT_URL)
+        val resultSummary = SearchResult<WorkflowSummary>()
+        resultSummary.totalHits = 1
+        resultSummary.results = listOf(WorkflowSummary())
+
+        val resultWorkflow = SearchResult<Workflow>()
+        val workflow = Workflow()
+        workflow.workflowDefinition = WorkflowDef()
+        workflow.createTime = System.currentTimeMillis()
+        resultWorkflow.totalHits = 1
+        resultWorkflow.results = listOf(workflow)
+
+        val query = "my_complex_query"
+        val mockEngine = MockEngine { request ->
+            println("URL from test ${request.url}")
+            when (request.url.toString()) {
+                "${ROOT_URL}/workflow/search?query=$query" -> respond(
+                    content = objectMapper.writeValueAsString(resultSummary),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json")
+                )
+                "${ROOT_URL}/workflow/search-v2?query=$query" -> respond(
+                    content = objectMapper.writeValueAsString(resultWorkflow),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json")
+                )
+                "${ROOT_URL}/workflow/search?start=0&size=10&sort=sort&freeText=text&query=$query" -> respond(
+                    content = objectMapper.writeValueAsString(resultSummary),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json")
+                )
+                "${ROOT_URL}/workflow/search-v2?start=0&size=10&sort=sort&freeText=text&query=$query" -> respond(
+                    content = objectMapper.writeValueAsString(resultWorkflow),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json")
+                )
+
+                else -> throw IllegalArgumentException("Wrong url")
+            }
+
+        }
+        workflowClient =  KtorWorkflowClient(ROOT_URL, httpClient(mockEngine))
     }
 
     @Test
@@ -29,19 +63,10 @@ class JerseyWorkflowClientTest : JerseyClientTest() {
         result.totalHits = 1
         result.results = listOf(WorkflowSummary())
 
-        val uri = createURI("workflow/search?query=$query")
-
-        val clientResponse: ClientResponse = mock()
-        Mockito.`when`(clientResponse.getEntity(searchResultWorkflowSummary)).thenReturn(result)
-        Mockito.`when`(requestHandler.get(uri)).thenReturn(clientResponse)
-
         val searchResult = workflowClient.search(query)
 
-        Mockito.verify(requestHandler, Mockito.times(1))
-            .get(uri)
-
         assertTrue {
-            searchResult?.totalHits == result.totalHits
+            searchResult.totalHits == result.totalHits
                     && searchResult.results?.isNotEmpty() == true
                     && searchResult.results?.size == 1
                     && searchResult.results?.get(0) is WorkflowSummary
@@ -55,19 +80,10 @@ class JerseyWorkflowClientTest : JerseyClientTest() {
         result.totalHits = 1
         result.results = listOf(Workflow())
 
-        val uri = createURI("workflow/search-v2?query=$query")
-
-        val clientResponse: ClientResponse = mock()
-        Mockito.`when`(clientResponse.getEntity(searchResultWorkflow)).thenReturn(result)
-        Mockito.`when`(requestHandler.get(uri)).thenReturn(clientResponse)
-
-        val searchResult = workflowClient.searchV2("my_complex_query")
-
-        Mockito.verify(requestHandler, Mockito.times(1))
-            .get(uri)
+        val searchResult = workflowClient.searchV2(query)
 
         assertTrue {
-            searchResult?.totalHits == result.totalHits
+            searchResult.totalHits == result.totalHits
                     && searchResult.results?.isNotEmpty() == true
                     && searchResult.results?.size == 1
                     && searchResult.results?.get(0) is Workflow
@@ -85,19 +101,10 @@ class JerseyWorkflowClientTest : JerseyClientTest() {
         result.totalHits = 1
         result.results = listOf(WorkflowSummary())
 
-        val uri = createURI("workflow/search?start=$start&size=$size&sort=$sort&freeText=$freeText&query=$query")
-
-        val clientResponse: ClientResponse = mock()
-        Mockito.`when`(clientResponse.getEntity(searchResultWorkflowSummary)).thenReturn(result)
-        Mockito.`when`(requestHandler.get(uri)).thenReturn(clientResponse)
-
         val searchResult = workflowClient.search(start, size, sort, freeText, query)
 
-        Mockito.verify(requestHandler, Mockito.times(1))
-            .get(uri)
-
         assertTrue {
-            searchResult?.totalHits == result.totalHits
+            searchResult.totalHits == result.totalHits
                     && searchResult.results?.isNotEmpty() == true
                     && searchResult.results?.size == 1
                     && searchResult.results?.get(0) is WorkflowSummary
@@ -115,19 +122,10 @@ class JerseyWorkflowClientTest : JerseyClientTest() {
         result.totalHits = 1
         result.results = listOf(Workflow())
 
-        val uri = createURI("workflow/search-v2?start=$start&size=$size&sort=$sort&freeText=$freeText&query=$query")
-
-        val clientResponse: ClientResponse = mock()
-        Mockito.`when`(clientResponse.getEntity(searchResultWorkflow)).thenReturn(result)
-        Mockito.`when`(requestHandler.get(uri)).thenReturn(clientResponse)
-
         val searchResult = workflowClient.searchV2(start, size, sort, freeText, query)
 
-        Mockito.verify(requestHandler, Mockito.times(1))
-            .get(uri)
-
         assertTrue {
-            searchResult?.totalHits == result.totalHits
+            searchResult.totalHits == result.totalHits
                     && searchResult.results?.isNotEmpty() == true
                     && searchResult.results?.size == 1
                     && searchResult.results?.get(0) is Workflow

@@ -11,11 +11,12 @@ import com.netflix.conductor.common.run.SearchResult
 import com.netflix.conductor.common.run.Workflow
 import com.netflix.conductor.common.run.WorkflowSummary
 import com.netflix.conductor.common.utils.ExternalPayloadStorage
+import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.utils.io.errors.*
 
-class KtorWorkflowClient(override var rootURI: String): WorkflowClient, KtorBaseClient(rootURI) {
+class KtorWorkflowClient(rootURI: String, httpClient: HttpClient): WorkflowClient, KtorBaseClient(rootURI, httpClient) {
 
     override suspend fun startWorkflow(startWorkflowRequest: StartWorkflowRequest): String {
         require(startWorkflowRequest.name.isNotBlank()) { "Workflow name cannot be null or empty" }
@@ -172,7 +173,7 @@ class KtorWorkflowClient(override var rootURI: String): WorkflowClient, KtorBase
 
     override suspend fun search(query: String): SearchResult<WorkflowSummary> {
         val response = httpClient.get {
-            url("workflow/search")
+            url("$rootURI/workflow/search")
             parameter("query", query)
         }
         return response.body()
@@ -186,11 +187,11 @@ class KtorWorkflowClient(override var rootURI: String): WorkflowClient, KtorBase
         query: String
     ): SearchResult<WorkflowSummary> {
         val response = httpClient.get {
-            url("workflow/search")
-            parameter("start", query)
-            parameter("size", query)
-            parameter("sort", query)
-            parameter("freeText", query)
+            url("$rootURI/workflow/search")
+            parameter("start", start)
+            parameter("size", size)
+            parameter("sort", sort)
+            parameter("freeText", freeText)
             parameter("query", query)
         }
         return response.body()
@@ -198,7 +199,7 @@ class KtorWorkflowClient(override var rootURI: String): WorkflowClient, KtorBase
 
     override suspend fun searchV2(query: String): SearchResult<Workflow> {
         val response = httpClient.get {
-            url("workflow/search-v2")
+            url("$rootURI/workflow/search-v2")
             parameter("query", query)
         }
         return response.body()
@@ -212,11 +213,11 @@ class KtorWorkflowClient(override var rootURI: String): WorkflowClient, KtorBase
         query: String
     ): SearchResult<Workflow> {
         val response = httpClient.get {
-            url("workflow/search-v2")
-            parameter("start", query)
-            parameter("size", query)
-            parameter("sort", query)
-            parameter("freeText", query)
+            url("$rootURI/workflow/search-v2")
+            parameter("start", start)
+            parameter("size", size)
+            parameter("sort", sort)
+            parameter("freeText", freeText)
             parameter("query", query)
         }
         return response.body()

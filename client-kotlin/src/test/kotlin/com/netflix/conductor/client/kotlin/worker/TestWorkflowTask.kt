@@ -1,63 +1,69 @@
-package com.netflix.conductor.client.kotlin.worker;
+/*
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ */
+package com.netflix.conductor.client.kotlin.worker
 
-import java.io.InputStream;
-import java.util.List;
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+import com.netflix.conductor.common.config.ObjectMapperProvider
+import com.netflix.conductor.common.metadata.tasks.Task
+import com.netflix.conductor.common.metadata.tasks.TaskType
+import com.netflix.conductor.common.metadata.workflow.WorkflowTask
+import java.io.File
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.Test
+import kotlin.test.BeforeTest
 
-import org.junit.Before;
-import org.junit.Test;
-
-import com.netflix.conductor.common.config.ObjectMapperProvider;
-import com.netflix.conductor.common.metadata.tasks.Task;
-import com.netflix.conductor.common.metadata.tasks.TaskType;
-import com.netflix.conductor.common.metadata.workflow.WorkflowTask;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-
-public class TestWorkflowTask {
-
-    private ObjectMapper objectMapper;
-
-    @Before
-    public void setup() {
-        objectMapper = new ObjectMapperProvider().getObjectMapper();
+class TestWorkflowTask {
+    private lateinit var objectMapper: ObjectMapper
+    @BeforeTest
+    fun setup() {
+        objectMapper = ObjectMapperProvider().objectMapper
     }
 
     @Test
-    public void test() throws Exception {
-        WorkflowTask task = new WorkflowTask();
-        task.setType("Hello");
-        task.setName("name");
+    @Throws(Exception::class)
+    fun test() {
+        var task = WorkflowTask()
+        task.type = "Hello"
+        task.name = "name"
 
-        String json = objectMapper.writeValueAsString(task);
+        var json = objectMapper.writeValueAsString(task)
+        var read: WorkflowTask = objectMapper.readValue(json)
 
-        WorkflowTask read = objectMapper.readValue(json, WorkflowTask.class);
-        assertNotNull(read);
-        assertEquals(task.getName(), read.getName());
-        assertEquals(task.getType(), read.getType());
+        assertNotNull(read)
+        assertEquals(task.name, read.name)
+        assertEquals(task.type, read.type)
 
-        task = new WorkflowTask();
-        task.setWorkflowTaskType(TaskType.SUB_WORKFLOW);
-        task.setName("name");
+        task = WorkflowTask()
+        task.setWorkflowTaskType(TaskType.SUB_WORKFLOW)
+        task.name = "name"
 
-        json = objectMapper.writeValueAsString(task);
+        json = objectMapper.writeValueAsString(task)
+        read = objectMapper.readValue(json)
 
-        read = objectMapper.readValue(json, WorkflowTask.class);
-        assertNotNull(read);
-        assertEquals(task.getName(), read.getName());
-        assertEquals(task.getType(), read.getType());
-        assertEquals(TaskType.SUB_WORKFLOW.name(), read.getType());
+        assertNotNull(read)
+        assertEquals(task.name, read.name)
+        assertEquals(task.type, read.type)
+        assertEquals(TaskType.SUB_WORKFLOW.name, read.type)
     }
 
-    @SuppressWarnings("unchecked")
     @Test
-    public void testObjectMapper() throws Exception {
-        try (InputStream stream = TestWorkflowTask.class.getResourceAsStream("/tasks.json")) {
-            List<Task> tasks = objectMapper.readValue(stream, List.class);
-            assertNotNull(tasks);
-            assertEquals(1, tasks.size());
-        }
+    @Throws(Exception::class)
+    fun testObjectMapper() {
+        val jsonString: String = File("src/test/resources/tasks.json").readText()
+        val tasks: List<Task> =
+            objectMapper.readValue<List<Task>>(jsonString)
+        assertNotNull(tasks)
+        assertEquals(1, tasks.size.toLong())
     }
 }

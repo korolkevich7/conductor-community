@@ -3,10 +3,11 @@ package com.netflix.conductor.client.kotlin.http.ktor
 import com.netflix.conductor.client.kotlin.http.MetadataClient
 import com.netflix.conductor.common.metadata.tasks.TaskDef
 import com.netflix.conductor.common.metadata.workflow.WorkflowDef
+import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 
-class KotlinMetadataClient(override var rootURI: String): MetadataClient, KtorBaseClient(rootURI) {
+class KtorMetadataClient(rootURI: String, httpClient: HttpClient): MetadataClient, KtorBaseClient(rootURI, httpClient) {
 
     override suspend fun registerWorkflowDef(workflowDef: WorkflowDef) {
         httpClient.post {
