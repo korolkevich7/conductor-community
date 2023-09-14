@@ -4,7 +4,6 @@ import com.netflix.appinfo.InstanceInfo
 import com.netflix.conductor.client.kotlin.config.PropertyFactory
 import com.netflix.conductor.client.kotlin.http.TaskClient
 import com.netflix.conductor.client.kotlin.telemetry.MetricsContainer
-import com.netflix.conductor.client.kotlin.telemetry.record
 import com.netflix.conductor.client.kotlin.worker.Worker
 import com.netflix.conductor.common.metadata.tasks.Task
 import com.netflix.conductor.common.metadata.tasks.TaskResult
@@ -71,7 +70,7 @@ class TaskPollExecutor(
                 worker.batchPollTimeoutInMS
             )
         }
-        MetricsContainer.getPollTimer(taskType).record(duration)
+        MetricsContainer.recordPollTimer(taskType, duration)
         return tasks
     }
 
@@ -81,9 +80,11 @@ class TaskPollExecutor(
     }
 
 //todo coroutine uncaughtExceptionHandler
-
-val handler = CoroutineExceptionHandler{context, exception ->
-    MetricsContainer.incrementUncaughtExceptionCount()
+@OptIn(DelicateCoroutinesApi::class)
+val handler = CoroutineExceptionHandler{ context, exception ->
+    GlobalScope.launch {
+        MetricsContainer.incrementUncaughtExceptionCount()
+    }
     logger.error(exception) { "Uncaught exception. Context $context will exit now" }
 }
 
@@ -122,7 +123,7 @@ val handler = CoroutineExceptionHandler{context, exception ->
         val (result, duration) = measureTimedValue {
             _executeTask(worker, task)
         }
-        MetricsContainer.getExecutionTimer(worker.taskDefName).record(duration)
+        MetricsContainer.recordExecutionTimer(worker.taskDefName, duration)
         logger.debug {
             "Task: ${task.taskId} executed by worker: ${worker.javaClass.simpleName} at ${worker.identity} with status: ${result.second.status}" }
         return result
@@ -206,7 +207,7 @@ val handler = CoroutineExceptionHandler{context, exception ->
         return block() // last attempt
     }
 
-    private fun handleException(
+    private suspend fun handleException(
             t: Throwable,
             result: TaskResult,
             worker: Worker,
