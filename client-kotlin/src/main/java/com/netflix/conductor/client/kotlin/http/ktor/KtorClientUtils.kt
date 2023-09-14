@@ -5,14 +5,22 @@ import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.module.kotlin.readValue
+import com.netflix.conductor.client.kotlin.config.ObjectMapperProvider
 import com.netflix.conductor.client.kotlin.exception.ConductorClientException
 import com.netflix.conductor.common.jackson.JsonProtoModule
+import com.netflix.conductor.common.validation.ErrorResponse
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.*
 import io.ktor.client.engine.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
 import io.ktor.serialization.jackson.*
+
+val logger = KotlinLogging.logger { }
 
 fun defaultHttpClient(engine: HttpClientEngine): HttpClient {
     return HttpClient(engine) {
@@ -26,23 +34,23 @@ fun defaultHttpClient(): HttpClient {
     }
 }
 
-public fun HttpClientConfig<*>.configureClient() {
+fun HttpClientConfig<*>.configureClient() {
     expectSuccess = true
     HttpResponseValidator {
         handleResponseExceptionWithRequest { exception, request ->
-            throw ConductorClientException("Unable to invoke Conductor API with uri: ${request.url}, runtime exception occurred", exception)
+            try {
+                val clientException = exception as? ResponseException ?: return@handleResponseExceptionWithRequest
+                val exceptionResponse = clientException.response
+                val errorMessage = exceptionResponse.bodyAsText()
+                logger.warn { "Unable to invoke Conductor API with uri: ${request.url}, unexpected response from server: status=${exceptionResponse.status}, responseBody='$errorMessage'." }
 
+                runCatching { ObjectMapperProvider.objectMapper.readValue<ErrorResponse>(errorMessage) }
+                    .onSuccess { throw ConductorClientException(exceptionResponse.status.value, it) }
+                    .onFailure { throw ConductorClientException(exceptionResponse.status.value, errorMessage) }
 
-            //TODO: handle another exceptions
-//            val clientException = exception as? ClientRequestException ?: return@handleResponseExceptionWithRequest
-//            val exceptionResponse = clientException.response
-//            throw ConductorClientException("Unable to invoke Conductor API with uri: ${request.url}, runtime exception occurred", exception)
-//                    if (exceptionResponse.status == HttpStatusCode.NotFound) {
-//                        val exceptionResponseText = exceptionResponse.bodyAsText()
-//                        throw MissingPageException(exceptionResponse, exceptionResponseText)
-//                    }
-
-
+            } catch (e: Exception) {
+                throw ConductorClientException("Unable to invoke Conductor API with uri: ${request.url}, runtime exception occurred", exception)
+            }
         }
     }
     install(ContentNegotiation) {
