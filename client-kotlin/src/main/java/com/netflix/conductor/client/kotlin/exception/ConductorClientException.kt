@@ -5,18 +5,18 @@ import com.netflix.conductor.common.validation.ValidationError
 
 
 /** Client exception thrown from Conductor api clients.  */
-class ConductorClientException : RuntimeException {
+open class ConductorClientException : RuntimeException {
     var status = 0
     var instance: String? = null
     var code: String? = null
     var isRetryable = false
-    var validationErrors: List<ValidationError>? = null
+    var validationErrors: List<ValidationError> = emptyList()
 
-    constructor(message: String?) : super(message)
+    constructor(message: String) : super(message)
 
-    constructor(message: String?, cause: Throwable?) : super(message, cause)
+    constructor(message: String, cause: Throwable) : super(message, cause)
 
-    constructor(status: Int, message: String?) : super(message) {
+    constructor(status: Int, message: String) : super(message) {
         this.status = status
     }
 
@@ -31,20 +31,14 @@ class ConductorClientException : RuntimeException {
     override fun toString(): String {
         val builder = StringBuilder()
         builder.append(javaClass.name).append(": ")
-        if (message != null) {
-            builder.append(message)
-        }
+        message?.also { builder.append(it) }
         if (status > 0) {
             builder.append(" {status=").append(status)
-            if (this.code != null) {
-                builder.append(", code='").append(code).append("'")
-            }
+            code?.also { builder.append(", code='").append(it).append("'") }
             builder.append(", retryable: ").append(isRetryable)
         }
-        if (instance != null) {
-            builder.append(", instance: ").append(instance)
-        }
-        if (validationErrors != null) {
+        instance?.also { builder.append(", instance: ").append(it) }
+        if (validationErrors.isNotEmpty()) {
             builder.append(", validationErrors: ").append(validationErrors.toString())
         }
         builder.append("}")

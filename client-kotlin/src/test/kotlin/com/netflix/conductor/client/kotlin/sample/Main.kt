@@ -27,8 +27,10 @@ fun main() {
     val worker2: Worker = SampleWorker("task_5")
 
     // Create TaskRunnerConfigurer
-    val configurer = TaskRunnerConfigurer.Builder(taskClient, Arrays.asList(worker1, worker2))
-        .build()
+    val configurer = TaskRunnerConfigurer.Builder(
+        taskClient,
+        listOf(worker1, worker2)
+    ).build()
 
     // Start the polling and execution of tasks
     configurer.init()

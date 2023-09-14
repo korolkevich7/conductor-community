@@ -2,6 +2,7 @@ package com.netflix.conductor.client.kotlin.automator
 
 import com.netflix.appinfo.InstanceInfo
 import com.netflix.conductor.client.kotlin.config.PropertyFactory
+import com.netflix.conductor.client.kotlin.exception.ConductorTimeoutClientException
 import com.netflix.conductor.client.kotlin.http.TaskClient
 import com.netflix.conductor.client.kotlin.telemetry.MetricsContainer
 import com.netflix.conductor.client.kotlin.worker.Worker
@@ -30,10 +31,8 @@ class TaskPollExecutor(
         private val taskClient: TaskClient,
         private val updateRetryCount: Int,
         private val taskToDomain: Map<String, String>,
-        private val leaseThreadCount: Int
+        private val leaseExtendDispatcher: CoroutineDispatcher
 ) {
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private val leaseExtendDispatcher = Dispatchers.IO.limitedParallelism(leaseThreadCount)
 
     init {
         //TODO Coroutine monitor???
@@ -96,23 +95,29 @@ val handler = CoroutineExceptionHandler{ context, exception ->
         val taskResponseTimeoutSeconds = task.responseTimeoutSeconds
         logger.debug {
             "Polled task: ${task.taskId} of type: ${task.taskType} in domain: '$domain', from worker: ${worker.identity}" }
-        val responseTimeout = markNow().elapsedNow().minus(task.startTime.milliseconds)
-        //TODO
-        return withTimeout(responseTimeout) {
-            val deferred = async {
-                executeTask(worker, task)
+        val wastedTime = markNow().elapsedNow().minus(task.startTime.milliseconds)
+        val responseTimeout = taskResponseTimeoutSeconds.seconds.minus(wastedTime)
+            //TODO
+        try {
+            return withTimeout(responseTimeout) {
+                val deferred = async {
+                    executeTask(worker, task)
+                }
+                val interval = (taskResponseTimeoutSeconds * LEASE_EXTEND_DURATION_FACTOR).seconds
+                var extendLeaseJob: Job? = null
+                if (taskResponseTimeoutSeconds > 0 && worker.leaseExtendEnabled) {
+                    extendLeaseJob = launchExtendLease(interval, task, deferred)
+                }
+                val result = deferred.await()
+                logger.debug {
+                    "Task:${task.taskId} of type:${task.taskDefName} finished processing with status:${result.first.status}" }
+                extendLeaseJob?.cancel()
+                result
             }
-            val interval = (taskResponseTimeoutSeconds * LEASE_EXTEND_DURATION_FACTOR).seconds
-            var extendLeaseJob: Job? = null
-            if (taskResponseTimeoutSeconds > 0 && worker.leaseExtendEnabled) {
-                extendLeaseJob = launchExtendLease(interval, task, deferred)
-            }
-            val result = deferred.await()
-            logger.debug {
-                "Task:${task.taskId} of type:${task.taskDefName} finished processing with status:${result.first.status}" }
-            extendLeaseJob?.cancel()
-            result
+        } catch (e: TimeoutCancellationException) {
+            throw ConductorTimeoutClientException("Task:${task.taskId} of type:${task.taskDefName} canceled with timeout: $responseTimeout")
         }
+
         //TODO: should update after it
     }
 

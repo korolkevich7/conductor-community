@@ -1,5 +1,6 @@
 package com.netflix.conductor.client.kotlin.automator
 
+import com.netflix.conductor.client.kotlin.exception.ConductorTimeoutClientException
 import com.netflix.conductor.client.kotlin.http.TaskClient
 import com.netflix.conductor.client.kotlin.worker.Worker
 import com.netflix.conductor.common.metadata.tasks.Task
@@ -18,12 +19,11 @@ import kotlin.time.ExperimentalTime
 private val logger = KotlinLogging.logger {}
 
 /** Configures automated polling of tasks and execution via the registered [Worker]s.  */
+@OptIn(DelicateCoroutinesApi::class, ExperimentalCoroutinesApi::class)
 class TaskRunnerConfigurer private constructor(builder: Builder) {
     private val eurekaClient: EurekaClient?
     private val taskClient: TaskClient
     private val workers: MutableList<Worker> = mutableListOf()
-    //TODO: from property
-    private val leaseThreadCount: Int = 2
 
     /**
      * @return sleep time in millisecond before task update retry is done when receiving error from
@@ -56,6 +56,13 @@ class TaskRunnerConfigurer private constructor(builder: Builder) {
     val taskThreadCount: MutableMap<String, Int>
 
     /**
+     * @return Thread count for leasing tasks
+     */
+    private val leaseLimitedParallelism: Int
+
+    val workersDispatcher: ExecutorCoroutineDispatcher
+
+    /**
      * @see Builder
      *
      * @see TaskRunnerConfigurer.init
@@ -80,13 +87,18 @@ class TaskRunnerConfigurer private constructor(builder: Builder) {
         workerNamePrefix = builder.workerNamePrefix
         taskToDomain = builder.taskToDomain
         shutdownGracePeriodSeconds = builder.shutdownGracePeriodSeconds
+        leaseLimitedParallelism = builder.leaseLimitedParallelism
+
+        workersDispatcher = newFixedThreadPoolContext(workers.size, "$workerNamePrefix-worker-poll-context")
+        val leasingDispatcher = Dispatchers.IO.limitedParallelism(leaseLimitedParallelism)
 
         taskPollExecutor = TaskPollExecutor(
             eurekaClient,
             taskClient,
             updateRetryCount,
             taskToDomain,
-            leaseThreadCount)
+            leasingDispatcher)
+
     }
 
     /**
@@ -95,13 +107,14 @@ class TaskRunnerConfigurer private constructor(builder: Builder) {
     @OptIn(DelicateCoroutinesApi::class)
     @Synchronized
     fun init() {
-        val workersDispatcher = newFixedThreadPoolContext(workers.size, "$workerNamePrefix-worker-poll-context")
         workers.forEach { startWorkerWithChannel(it, workersDispatcher) }
         //workers.forEach { startWorker(it, workersDispatcher) }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun startWorkerWithChannel(worker: Worker, workersDispatcher: CoroutineDispatcher) {
-        val workerScope = CoroutineScope(workersDispatcher + SupervisorJob())
+        val taskDispatcher = taskDispatcher(worker, workersDispatcher)
+        val workerScope = CoroutineScope(taskDispatcher + SupervisorJob())
         val taskChannel: ReceiveChannel<Task> = workerScope.produce(capacity = worker.batchPollCount) {
             val pollingResult = runCatching { taskPollExecutor.poll(worker) }
             pollingResult.getOrNull()?.forEach { send(it) }
@@ -109,29 +122,40 @@ class TaskRunnerConfigurer private constructor(builder: Builder) {
 
         workerScope.launch {
             for (task in taskChannel) {
-                val taskPair = taskPollExecutor.processTask(worker, task)
-                taskPollExecutor.updateTaskResult(taskPair.first, taskPair.second, worker)
+                runCatching { taskPollExecutor.processTask(worker, task) }
+                    .onSuccess { taskPollExecutor.updateTaskResult(it.first, it.second, worker) }
+                    .onFailure { handleProcessException(it) }
             }
         }
     }
 
     private fun startWorker(worker: Worker, workersDispatcher: CoroutineDispatcher) {
-        val taskDispatcher = Dispatchers.IO.limitedParallelism(worker.threads)
-        // = newFixedThreadPoolContext(worker.threads, "${worker.taskDefName}-context")
+        val taskDispatcher = taskDispatcher(worker, workersDispatcher)
         val workerScope = CoroutineScope(
-            workersDispatcher +
+            taskDispatcher +
                     SupervisorJob() +
                     CoroutineName("Task ${worker.taskDefName} context"))
         val flow = workerScope.taskComputation(taskPollExecutor, worker)
             .map {
                 taskPollExecutor.processTask(worker, it) }
-            .catch { TODO("timeout") }
+            .catch { handleProcessException(it) }
             .onEach { taskPollExecutor.updateTaskResult(it.first, it.second, worker) }
-            .catch { TODO("unexpected errors") }
             .flowOn(taskDispatcher)
 
         CoroutineScope(SupervisorJob()).launch(workersDispatcher) {
             flow.collect()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun taskDispatcher(worker: Worker, coroutineDispatcher: CoroutineDispatcher): CoroutineDispatcher {
+        return worker.limitedParallelism?.let { coroutineDispatcher.limitedParallelism(it) } ?: coroutineDispatcher
+    }
+
+    private fun handleProcessException(t: Throwable) {
+        when(t) {
+            is ConductorTimeoutClientException -> logger.warn { t.message }
+            else -> logger.error { t.message }
         }
     }
 
@@ -149,14 +173,17 @@ class TaskRunnerConfigurer private constructor(builder: Builder) {
     fun shutdown() {
         TODO("maybe not needed")
         taskPollExecutor.shutdown(shutdownGracePeriodSeconds)
+        workersDispatcher.close()
     }
 
     /** Builder used to create the instances of TaskRunnerConfigurer  */
     class Builder(taskClient: TaskClient, workers: Collection<Worker>) {
-        var workerNamePrefix = "workflow-worker-%d"
+        //TODO
+        var workerNamePrefix = "workflow-worker"
         var sleepWhenRetry = 500
         var updateRetryCount = 3
         var shutdownGracePeriodSeconds = 10
+        var leaseLimitedParallelism = 2
         val workers: Collection<Worker>
         var eurekaClient: EurekaClient? = null
         val taskClient: TaskClient
@@ -227,6 +254,15 @@ class TaskRunnerConfigurer private constructor(builder: Builder) {
 
         fun withTaskThreadCount(taskThreadCount: MutableMap<String, Int>): Builder {
             this.taskThreadCount = taskThreadCount
+            return this
+        }
+
+        /**
+         * @param leaseLimitedParallelism limited threads for lease extend tasks
+         * @return Builder instance
+         */
+        fun withLeaseLimitedParallelism(leaseLimitedParallelism: Int): Builder {
+            this.leaseLimitedParallelism = leaseLimitedParallelism
             return this
         }
 
