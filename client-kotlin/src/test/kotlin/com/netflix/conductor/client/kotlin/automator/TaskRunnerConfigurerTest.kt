@@ -16,8 +16,7 @@ import com.netflix.conductor.client.kotlin.worker.Worker.Companion.create
 import com.netflix.conductor.common.metadata.tasks.Task
 import com.netflix.conductor.common.metadata.tasks.TaskResult
 import org.mockito.Mockito
-import java.util.*
-import java.util.function.Function
+import java.util.UUID
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -32,8 +31,8 @@ class TaskRunnerConfigurerTest {
 
     @Test//(expected = ConductorClientException::class)
     fun testInvalidThreadConfig() {
-        val worker1 = create("task1", Function<Task, TaskResult> { task: Task? -> TaskResult(task) })
-        val worker2 = create("task2", Function<Task, TaskResult> { task: Task? -> TaskResult(task) })
+        val worker1 = create("task1") { task: Task? -> TaskResult(task) }
+        val worker2 = create("task2") { task: Task? -> TaskResult(task) }
         val taskThreadCount = mutableMapOf(worker1.taskDefName to 2, worker2.taskDefName to 3)
         TaskRunnerConfigurer {
             taskClient = client
@@ -44,8 +43,8 @@ class TaskRunnerConfigurerTest {
 
     @Test
     fun testMissingTaskThreadConfig() {
-        val worker1 = create("task1", Function<Task, TaskResult> { task: Task? -> TaskResult(task) })
-        val worker2 = create("task2", Function<Task, TaskResult> { task: Task? -> TaskResult(task) })
+        val worker1 = create("task1") { task: Task? -> TaskResult(task) }
+        val worker2 = create("task2") { task: Task? -> TaskResult(task) }
         val taskThreadCount = mutableMapOf(worker1.taskDefName to 2)
         val configurer = TaskRunnerConfigurer {
             taskClient = client
@@ -60,8 +59,8 @@ class TaskRunnerConfigurerTest {
 
     @Test
     fun testPerTaskThreadPool() {
-        val worker1 = create("task1", Function<Task, TaskResult> { task: Task? -> TaskResult(task) })
-        val worker2 = create("task2", Function<Task, TaskResult> { task: Task? -> TaskResult(task) })
+        val worker1 = create("task1") { task: Task? -> TaskResult(task) }
+        val worker2 = create("task2") { task: Task? -> TaskResult(task) }
         val taskThreadCount = mutableMapOf(worker1.taskDefName to 2, worker2.taskDefName to 3)
         val configurer = TaskRunnerConfigurer {
             taskClient = client

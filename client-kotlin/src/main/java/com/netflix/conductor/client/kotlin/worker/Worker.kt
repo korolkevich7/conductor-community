@@ -16,10 +16,9 @@ import com.amazonaws.util.EC2MetadataUtils
 import com.netflix.conductor.client.kotlin.config.PropertyFactory
 import com.netflix.conductor.common.metadata.tasks.Task
 import com.netflix.conductor.common.metadata.tasks.TaskResult
-import org.slf4j.LoggerFactory
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.net.InetAddress
 import java.net.UnknownHostException
-import java.util.function.Function
 
 interface Worker {
     /**
@@ -72,7 +71,7 @@ interface Worker {
                 serverId =
                     if (EC2MetadataUtils.getInstanceId() == null) System.getProperty("user.name") else EC2MetadataUtils.getInstanceId()
             }
-            LOGGER.debug("Setting worker id to {}", serverId)
+            LOGGER.debug{ "Setting worker id to ${serverId}" }
             return serverId
         }
     val pollingInterval: Int
@@ -96,17 +95,17 @@ interface Worker {
         get() = PropertyFactory.getInteger(taskDefName, "limitedParallelism")
 
     companion object {
-        @JvmStatic
-        fun create(taskType: String, executor: Function<Task, TaskResult>): Worker {
+
+        fun create(taskType: String, executor: (Task) -> TaskResult): Worker {
             return object : Worker {
                 override val taskDefName: String = taskType
 
                 override suspend fun execute(task: Task): TaskResult {
-                    return executor.apply(task)
+                    return executor(task)
                 }
             }
         }
 
-        private val LOGGER = LoggerFactory.getLogger(Worker::class.java)
+        private val LOGGER = KotlinLogging.logger { }
     }
 }

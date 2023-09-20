@@ -14,10 +14,8 @@ package com.netflix.conductor.client.kotlin.sample
 import com.netflix.conductor.client.kotlin.automator.TaskRunnerConfigurer
 import com.netflix.conductor.client.kotlin.http.TaskClient
 import com.netflix.conductor.client.kotlin.http.ktor.KtorTaskClient
-import com.netflix.conductor.client.kotlin.worker.Worker
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
-import java.util.*
 
 fun main() {
     val taskClient: TaskClient = KtorTaskClient("http://localhost:8080/api/", HttpClient(OkHttp))
