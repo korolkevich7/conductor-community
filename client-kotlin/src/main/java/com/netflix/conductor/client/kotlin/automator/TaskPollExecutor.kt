@@ -53,7 +53,7 @@ class TaskPollExecutor(
 
         if (worker.paused()) {
             MetricsContainer.incrementTaskPausedCount(worker.taskDefName)
-            logger.debug { "Worker ${worker.javaClass} has been paused. Not polling anymore!" }
+            logger.debug { "Worker ${worker::class} has been paused. Not polling anymore!" }
             return emptyList()
         }
 
@@ -124,13 +124,13 @@ val handler = CoroutineExceptionHandler{ context, exception ->
     @OptIn(ExperimentalTime::class)
     suspend fun executeTask(worker: Worker, task: Task): Pair<Task, TaskResult> {
         logger.debug {
-            "Executing task: ${task.taskId} of type: ${task.taskDefName} in worker: ${worker.javaClass.simpleName} at ${worker.identity}" }
+            "Executing task: ${task.taskId} of type: ${task.taskDefName} in worker: ${worker::class.simpleName ?: "Undefined"} at ${worker.identity}" }
         val (result, duration) = measureTimedValue {
             _executeTask(worker, task)
         }
         MetricsContainer.recordExecutionTimer(worker.taskDefName, duration)
         logger.debug {
-            "Task: ${task.taskId} executed by worker: ${worker.javaClass.simpleName} at ${worker.identity} with status: ${result.second.status}" }
+            "Task: ${task.taskId} executed by worker: ${worker::class.simpleName ?: "Undefined"} at ${worker.identity} with status: ${result.second.status}" }
         return result
     }
 

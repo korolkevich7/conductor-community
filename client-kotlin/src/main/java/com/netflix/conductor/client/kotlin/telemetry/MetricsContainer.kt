@@ -168,7 +168,7 @@ object MetricsContainer {
 
     suspend fun incrementTaskPollErrorCount(taskType: String, e: Exception) {
         incrementCount(
-            TASK_POLL_ERROR, TASK_TYPE, taskType, EXCEPTION, e.javaClass.simpleName
+            TASK_POLL_ERROR, TASK_TYPE, taskType, EXCEPTION, e::class.simpleName ?: "Undefined"
         )
     }
 
@@ -178,7 +178,7 @@ object MetricsContainer {
 
     suspend fun incrementTaskExecutionErrorCount(taskType: String, e: Throwable) {
         incrementCount(
-            TASK_EXECUTE_ERROR, TASK_TYPE, taskType, EXCEPTION, e.javaClass.simpleName
+            TASK_EXECUTE_ERROR, TASK_TYPE, taskType, EXCEPTION, e::class.simpleName ?: "Undefined"
         )
     }
 
@@ -188,7 +188,7 @@ object MetricsContainer {
 
     suspend fun incrementTaskAckErrorCount(taskType: String, e: Exception) {
         incrementCount(
-            TASK_ACK_ERROR, TASK_TYPE, taskType, EXCEPTION, e.javaClass.simpleName
+            TASK_ACK_ERROR, TASK_TYPE, taskType, EXCEPTION, e::class.simpleName ?: "Undefined"
         )
     }
 
@@ -198,7 +198,7 @@ object MetricsContainer {
 
     suspend fun incrementTaskUpdateErrorCount(taskType: String, t: Throwable) {
         incrementCount(
-            TASK_UPDATE_ERROR, TASK_TYPE, taskType, EXCEPTION, t.javaClass.simpleName
+            TASK_UPDATE_ERROR, TASK_TYPE, taskType, EXCEPTION, t::class.simpleName ?: "Undefined"
         )
     }
 
@@ -208,7 +208,7 @@ object MetricsContainer {
             TASK_TYPE,
             taskType,
             EXCEPTION,
-            t.javaClass.simpleName
+            t::class.simpleName ?: "Undefined"
         )
     }
 
@@ -260,7 +260,7 @@ object MetricsContainer {
             WORKFLOW_TYPE,
             workflowType,
             EXCEPTION,
-            t.javaClass.simpleName
+            t::class.simpleName ?: "Undefined"
         )
     }
 }

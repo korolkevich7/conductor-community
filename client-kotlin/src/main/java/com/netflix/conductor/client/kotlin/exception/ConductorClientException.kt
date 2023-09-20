@@ -30,7 +30,7 @@ open class ConductorClientException : RuntimeException {
 
     override fun toString(): String {
         val builder = StringBuilder()
-        builder.append(javaClass.name).append(": ")
+        builder.append(this::class.qualifiedName).append(": ")
         message?.also { builder.append(it) }
         if (status > 0) {
             builder.append(" {status=").append(status)
