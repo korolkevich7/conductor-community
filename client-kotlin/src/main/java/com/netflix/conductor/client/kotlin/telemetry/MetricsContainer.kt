@@ -114,7 +114,7 @@ object MetricsContainer {
 
     private fun getTimer(name: String, additionalTags: List<String>): Timer {
         val key = spectatorKey(name, additionalTags)
-        return TIMERS.computeIfAbsent(key) {
+        return TIMERS.getOrPut(key) {
             val tagList = getTags(additionalTags)
             REGISTRY.timer(name, tagList)
         }
@@ -122,7 +122,7 @@ object MetricsContainer {
 
     private fun getCounter(name: String, additionalTags: List<String>): Counter {
         val key = spectatorKey(name, additionalTags)
-        return COUNTERS.computeIfAbsent(key) {
+        return COUNTERS.getOrPut(key) {
             val tags = getTags(additionalTags)
             REGISTRY.counter(name, tags)
         }
@@ -130,7 +130,7 @@ object MetricsContainer {
 
     private fun getGauge(name: String, additionalTags: List<String>): AtomicLong {
         val key = spectatorKey(name, additionalTags)
-        return GAUGES.computeIfAbsent(key) {
+        return GAUGES.getOrPut(key) {
             val id = REGISTRY.createId(name, getTags(additionalTags))
             PolledMeter.using(REGISTRY).withId(id).monitorValue(AtomicLong(0))
         }
