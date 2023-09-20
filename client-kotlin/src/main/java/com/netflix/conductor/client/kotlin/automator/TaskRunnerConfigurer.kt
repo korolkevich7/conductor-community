@@ -68,8 +68,6 @@ class TaskRunnerConfigurer private constructor(builder: Builder) {
      * @see TaskRunnerConfigurer.init
      */
     init {
-        require(builder.taskThreadCount.isNotEmpty()) { "Task thread map should not be empty" }
-
         for (worker in builder.workers) {
             if (!builder.taskThreadCount.containsKey(worker.taskDefName)) {
                 logger.warn {
@@ -81,7 +79,7 @@ class TaskRunnerConfigurer private constructor(builder: Builder) {
         }
         taskThreadCount = builder.taskThreadCount
         eurekaClient = builder.eurekaClient
-        taskClient = builder.taskClient
+        taskClient = builder.taskClient!!
         sleepWhenRetry = builder.sleepWhenRetry
         updateRetryCount = builder.updateRetryCount
         workerNamePrefix = builder.workerNamePrefix
@@ -177,94 +175,38 @@ class TaskRunnerConfigurer private constructor(builder: Builder) {
     }
 
     /** Builder used to create the instances of TaskRunnerConfigurer  */
-    class Builder(taskClient: TaskClient, workers: Collection<Worker>) {
+    class Builder {
         //TODO
+        /**
+         * prefix to be used for worker names, defaults to workflow-worker-
+         * if not supplied.
+         */
         var workerNamePrefix = "workflow-worker"
+        /**
+         * time in milliseconds, for which the thread should sleep when task
+         * update call fails, before retrying the operation.
+         */
         var sleepWhenRetry = 500
+        /**
+         * number of times to retry the failed updateTask operation
+         * @see sleepWhenRetry
+         */
         var updateRetryCount = 3
         var shutdownGracePeriodSeconds = 10
+        /**
+         * limited threads for lease extend tasks
+         */
         var leaseLimitedParallelism = 2
-        val workers: Collection<Worker>
-        var eurekaClient: EurekaClient? = null
-        val taskClient: TaskClient
-        var taskToDomain: Map<String, String> = mapOf()
-        var taskThreadCount: MutableMap<String, Int> = HashMap()
-
-        init {
-            require(workers.isNotEmpty()) { "Workers cannot be empty" }
-            this.taskClient = taskClient
-            this.workers = workers
-        }
-
+        var workers: Collection<Worker> = emptyList()
         /**
-         * @param workerNamePrefix prefix to be used for worker names, defaults to workflow-worker-
-         * if not supplied.
-         * @return Returns the current instance.
-         */
-        fun withWorkerNamePrefix(workerNamePrefix: String): Builder {
-            this.workerNamePrefix = workerNamePrefix
-            return this
-        }
-
-        /**
-         * @param sleepWhenRetry time in milliseconds, for which the thread should sleep when task
-         * update call fails, before retrying the operation.
-         * @return Returns the current instance.
-         */
-        fun withSleepWhenRetry(sleepWhenRetry: Int): Builder {
-            this.sleepWhenRetry = sleepWhenRetry
-            return this
-        }
-
-        /**
-         * @param updateRetryCount number of times to retry the failed updateTask operation
-         * @return Builder instance
-         * @see .withSleepWhenRetry
-         */
-        fun withUpdateRetryCount(updateRetryCount: Int): Builder {
-            this.updateRetryCount = updateRetryCount
-            return this
-        }
-
-        /**
-         * @param shutdownGracePeriodSeconds waiting seconds before forcing shutdown of your worker
-         * @return Builder instance
-         */
-        fun withShutdownGracePeriodSeconds(shutdownGracePeriodSeconds: Int): Builder {
-            require(shutdownGracePeriodSeconds >= 1) { "Seconds of shutdownGracePeriod cannot be less than 1" }
-            this.shutdownGracePeriodSeconds = shutdownGracePeriodSeconds
-            return this
-        }
-
-        /**
-         * @param eurekaClient Eureka client - used to identify if the server is in discovery or
+         * Eureka client - used to identify if the server is in discovery or
          * not. When the server goes out of discovery, the polling is terminated. If passed
          * null, discovery check is not done.
-         * @return Builder instance
          */
-        fun withEurekaClient(eurekaClient: EurekaClient): Builder {
-            this.eurekaClient = eurekaClient
-            return this
-        }
-
-        fun withTaskToDomain(taskToDomain: Map<String, String>): Builder {
-            this.taskToDomain = taskToDomain
-            return this
-        }
-
-        fun withTaskThreadCount(taskThreadCount: MutableMap<String, Int>): Builder {
-            this.taskThreadCount = taskThreadCount
-            return this
-        }
-
-        /**
-         * @param leaseLimitedParallelism limited threads for lease extend tasks
-         * @return Builder instance
-         */
-        fun withLeaseLimitedParallelism(leaseLimitedParallelism: Int): Builder {
-            this.leaseLimitedParallelism = leaseLimitedParallelism
-            return this
-        }
+        var eurekaClient: EurekaClient? = null
+        var taskClient: TaskClient? = null
+        var taskToDomain: Map<String, String> = mapOf()
+        var taskThreadCount: MutableMap<String, Int> = HashMap()
 
         /**
          * Builds an instance of the TaskRunnerConfigurer.
@@ -274,8 +216,18 @@ class TaskRunnerConfigurer private constructor(builder: Builder) {
          * this constructor for the polling to start.
          */
         fun build(): TaskRunnerConfigurer {
+            require(shutdownGracePeriodSeconds >= 1) { "Seconds of shutdownGracePeriod cannot be less than 1" }
+            require(taskThreadCount.isNotEmpty()) { "Task thread map should not be empty" }
+            require(workers.isNotEmpty()) { "Workers cannot be empty" }
+            requireNotNull(taskClient) { "task client should not be null" }
             return TaskRunnerConfigurer(this)
         }
     }
 
+}
+
+fun TaskRunnerConfigurer(block: TaskRunnerConfigurer.Builder.() -> Unit): TaskRunnerConfigurer {
+    val builder = TaskRunnerConfigurer.Builder()
+    builder.block()
+    return builder.build()
 }

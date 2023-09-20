@@ -24,7 +24,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class TaskRunnerConfigurerTest {
-    private var client: TaskClient? = null
+    private lateinit var client: TaskClient
     @BeforeTest
     fun setup() {
         client = Mockito.mock(TaskClient::class.java)
@@ -34,46 +34,43 @@ class TaskRunnerConfigurerTest {
     fun testInvalidThreadConfig() {
         val worker1 = create("task1", Function<Task, TaskResult> { task: Task? -> TaskResult(task) })
         val worker2 = create("task2", Function<Task, TaskResult> { task: Task? -> TaskResult(task) })
-        val taskThreadCount: MutableMap<String, Int> = HashMap()
-        taskThreadCount[worker1.taskDefName] = 2
-        taskThreadCount[worker2.taskDefName] = 3
-        TaskRunnerConfigurer.Builder(client!!, Arrays.asList(worker1, worker2))
-            .withTaskThreadCount(taskThreadCount)
-            .build()
+        val taskThreadCount = mutableMapOf(worker1.taskDefName to 2, worker2.taskDefName to 3)
+        TaskRunnerConfigurer {
+            taskClient = client
+            workers = listOf(worker1, worker2)
+            this.taskThreadCount = taskThreadCount
+        }
     }
 
     @Test
     fun testMissingTaskThreadConfig() {
         val worker1 = create("task1", Function<Task, TaskResult> { task: Task? -> TaskResult(task) })
         val worker2 = create("task2", Function<Task, TaskResult> { task: Task? -> TaskResult(task) })
-        val taskThreadCount: MutableMap<String, Int> = HashMap()
-        taskThreadCount[worker1.taskDefName] = 2
-        val configurer = TaskRunnerConfigurer.Builder(
-            client!!, Arrays.asList(worker1, worker2)
-        )
-            .withTaskThreadCount(taskThreadCount)
-            .build()
+        val taskThreadCount = mutableMapOf(worker1.taskDefName to 2)
+        val configurer = TaskRunnerConfigurer {
+            taskClient = client
+            workers = listOf(worker1, worker2)
+            this.taskThreadCount = taskThreadCount
+        }
         assertFalse(configurer.taskThreadCount.isEmpty())
         assertEquals(2, configurer.taskThreadCount.size.toLong())
-        assertEquals(2, configurer.taskThreadCount["task1"]!!.toLong())
-        assertEquals(1, configurer.taskThreadCount["task2"]!!.toLong())
+        assertEquals(2, configurer.taskThreadCount["task1"]?.toLong())
+        assertEquals(1, configurer.taskThreadCount["task2"]?.toLong())
     }
 
     @Test
     fun testPerTaskThreadPool() {
         val worker1 = create("task1", Function<Task, TaskResult> { task: Task? -> TaskResult(task) })
         val worker2 = create("task2", Function<Task, TaskResult> { task: Task? -> TaskResult(task) })
-        val taskThreadCount: MutableMap<String, Int> = HashMap()
-        taskThreadCount[worker1.taskDefName] = 2
-        taskThreadCount[worker2.taskDefName] = 3
-        val configurer = TaskRunnerConfigurer.Builder(
-            client!!, Arrays.asList(worker1, worker2)
-        )
-            .withTaskThreadCount(taskThreadCount)
-            .build()
+        val taskThreadCount = mutableMapOf(worker1.taskDefName to 2, worker2.taskDefName to 3)
+        val configurer = TaskRunnerConfigurer {
+            taskClient = client
+            this.taskThreadCount = taskThreadCount
+            workers = listOf(worker1, worker2)
+        }
         configurer.init()
-        assertEquals(2, configurer.taskThreadCount["task1"]!!.toLong())
-        assertEquals(3, configurer.taskThreadCount["task2"]!!.toLong())
+        assertEquals(2, configurer.taskThreadCount["task1"]?.toLong())
+        assertEquals(3, configurer.taskThreadCount["task2"]?.toLong())
     }
 
     private fun testTask(taskDefName: String): Task {

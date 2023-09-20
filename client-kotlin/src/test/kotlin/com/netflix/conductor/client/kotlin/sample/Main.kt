@@ -23,14 +23,14 @@ fun main() {
     val taskClient: TaskClient = KtorTaskClient("http://localhost:8080/api/", HttpClient(OkHttp))
     val threadCount = 2 // number of threads used to execute workers.  To avoid starvation, should be
     // same or more than number of workers
-    val worker1: Worker = SampleWorker("task_1")
-    val worker2: Worker = SampleWorker("task_5")
+    val worker1 = SampleWorker("task_1")
+    val worker2 = SampleWorker("task_5")
 
     // Create TaskRunnerConfigurer
-    val configurer = TaskRunnerConfigurer.Builder(
-        taskClient,
-        listOf(worker1, worker2)
-    ).build()
+    val configurer = TaskRunnerConfigurer {
+        this.taskClient = taskClient
+        workers = listOf(worker1, worker2)
+    }
 
     // Start the polling and execution of tasks
     configurer.init()
