@@ -4,7 +4,7 @@ import com.netflix.appinfo.InstanceInfo
 import com.netflix.conductor.client.kotlin.config.PropertyFactory
 import com.netflix.conductor.client.kotlin.exception.ConductorTimeoutClientException
 import com.netflix.conductor.client.kotlin.http.TaskClient
-import com.netflix.conductor.client.kotlin.telemetry.MetricsContainer
+import com.netflix.conductor.client.kotlin.telemetry.*
 import com.netflix.conductor.client.kotlin.worker.Worker
 import com.netflix.conductor.common.metadata.tasks.Task
 import com.netflix.conductor.common.metadata.tasks.TaskResult

@@ -19,52 +19,30 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
 
-interface MetricOperation {
+internal sealed interface MetricOperation {
     val name: String
     val additionalTags: List<String>
 }
 
-data class TimerMetric(
+internal data class TimerMetric(
     override val name: String,
     override val additionalTags: List<String>,
     val amount: Duration): MetricOperation
 
-data class CounterMetric(
+internal data class CounterMetric(
     override val name: String,
     override val additionalTags: List<String>,
     val incrementValue: Long = 1): MetricOperation
 
-data class GaugeMetric(
+internal data class GaugeMetric(
     override val name: String,
     override val additionalTags: List<String>,
     val payloadSize: Long): MetricOperation
 
 @OptIn(DelicateCoroutinesApi::class)
 object MetricsContainer {
-    private const val TASK_TYPE = "taskType"
-    private const val WORKFLOW_TYPE = "workflowType"
-    private const val WORKFLOW_VERSION = "version"
-    private const val EXCEPTION = "exception"
-    private const val ENTITY_NAME = "entityName"
-    private const val OPERATION = "operation"
-    private const val PAYLOAD_TYPE = "payload_type"
-    private const val TASK_EXECUTION_QUEUE_FULL = "task_execution_queue_full"
-    private const val TASK_POLL_ERROR = "task_poll_error"
-    private const val TASK_PAUSED = "task_paused"
-    private const val TASK_EXECUTE_ERROR = "task_execute_error"
-    private const val TASK_ACK_FAILED = "task_ack_failed"
-    private const val TASK_ACK_ERROR = "task_ack_error"
-    private const val TASK_UPDATE_ERROR = "task_update_error"
-    private const val TASK_LEASE_EXTEND_ERROR = "task_lease_extend_error"
-    private const val TASK_LEASE_EXTEND_COUNTER = "task_lease_extend_counter"
-    private const val TASK_POLL_COUNTER = "task_poll_counter"
-    private const val TASK_EXECUTE_TIME = "task_execute_time"
-    private const val TASK_POLL_TIME = "task_poll_time"
-    private const val TASK_RESULT_SIZE = "task_result_size"
-    private const val WORKFLOW_INPUT_SIZE = "workflow_input_size"
-    private const val EXTERNAL_PAYLOAD_USED = "external_payload_used"
-    private const val WORKFLOW_START_ERROR = "workflow_start_error"
-    private const val THREAD_UNCAUGHT_EXCEPTION = "thread_uncaught_exceptions"
+    const val TASK_TYPE = "taskType"
+
     private val REGISTRY: Registry = Spectator.globalRegistry()
 
     private val METRIC_CHANNEL: Channel<MetricOperation> = Channel(capacity = 80) {  }
@@ -72,7 +50,8 @@ object MetricsContainer {
     private val TIMERS: MutableMap<String, Timer> = HashMap()
     private val COUNTERS: MutableMap<String, Counter> = HashMap()
     private val GAUGES: MutableMap<String, AtomicLong> = HashMap()
-    private val CLASS_NAME = MetricsContainer::class.java.simpleName
+
+    private val CLASS_NAME = MetricsContainer::class.qualifiedName
 
     init {
         val metricDispatcher = newSingleThreadContext("metrics dispatcher")
@@ -87,12 +66,7 @@ object MetricsContainer {
             }
         }
     }
-
-    suspend fun recordPollTimer(taskType: String, amount: Duration) = recordTaskTimer(TASK_POLL_TIME, taskType, amount)
-
-    suspend fun recordExecutionTimer(taskType: String, amount: Duration) = recordTaskTimer(TASK_EXECUTE_TIME, taskType, amount)
-
-    private suspend fun recordTaskTimer(operationName: String, taskType: String, amount: Duration) {
+    suspend fun recordTaskTimer(operationName: String, taskType: String, amount: Duration) {
         METRIC_CHANNEL.send(
             TimerMetric(
                 operationName,
@@ -100,12 +74,22 @@ object MetricsContainer {
                 amount = amount))
     }
 
-    private suspend fun incrementCount(name: String, vararg additionalTags: String, incrementValue: Long = 1) {
+    suspend fun incrementCount(name: String, vararg additionalTags: String, incrementValue: Long = 1) {
         METRIC_CHANNEL.send(
             CounterMetric(
                 name,
                 listOf(*additionalTags),
                 incrementValue = incrementValue)
+        )
+    }
+
+    suspend fun updateGaugeValue(name: String, vararg additionalTags: String, payloadSize: Long) {
+        METRIC_CHANNEL.send(
+            GaugeMetric(
+                name,
+                listOf(*additionalTags),
+                payloadSize = payloadSize
+            )
         )
     }
 
@@ -147,122 +131,4 @@ object MetricsContainer {
         }
         return tagList
     }
-
-    private suspend fun updateGaugeValue(name: String, vararg additionalTags: String, payloadSize: Long) {
-        METRIC_CHANNEL.send(
-            GaugeMetric(
-                name,
-                listOf(*additionalTags),
-                payloadSize = payloadSize
-            )
-        )
-    }
-
-    suspend fun incrementTaskExecutionQueueFullCount(taskType: String) {
-        incrementCount(TASK_EXECUTION_QUEUE_FULL, TASK_TYPE, taskType)
-    }
-
-    suspend fun incrementUncaughtExceptionCount() {
-        incrementCount(THREAD_UNCAUGHT_EXCEPTION)
-    }
-
-    suspend fun incrementTaskPollErrorCount(taskType: String, e: Exception) {
-        incrementCount(
-            TASK_POLL_ERROR, TASK_TYPE, taskType, EXCEPTION, e::class.simpleName ?: "Undefined"
-        )
-    }
-
-    suspend fun incrementTaskPausedCount(taskType: String) {
-        incrementCount(TASK_PAUSED, TASK_TYPE, taskType)
-    }
-
-    suspend fun incrementTaskExecutionErrorCount(taskType: String, e: Throwable) {
-        incrementCount(
-            TASK_EXECUTE_ERROR, TASK_TYPE, taskType, EXCEPTION, e::class.simpleName ?: "Undefined"
-        )
-    }
-
-    suspend fun incrementTaskAckFailedCount(taskType: String) {
-        incrementCount(TASK_ACK_FAILED, TASK_TYPE, taskType)
-    }
-
-    suspend fun incrementTaskAckErrorCount(taskType: String, e: Exception) {
-        incrementCount(
-            TASK_ACK_ERROR, TASK_TYPE, taskType, EXCEPTION, e::class.simpleName ?: "Undefined"
-        )
-    }
-
-    suspend fun recordTaskResultPayloadSize(taskType: String, payloadSize: Long) {
-        updateGaugeValue(TASK_RESULT_SIZE, TASK_TYPE, taskType, payloadSize = payloadSize)
-    }
-
-    suspend fun incrementTaskUpdateErrorCount(taskType: String, t: Throwable) {
-        incrementCount(
-            TASK_UPDATE_ERROR, TASK_TYPE, taskType, EXCEPTION, t::class.simpleName ?: "Undefined"
-        )
-    }
-
-    suspend fun incrementTaskLeaseExtendErrorCount(taskType: String, t: Throwable) {
-        incrementCount(
-            TASK_LEASE_EXTEND_ERROR,
-            TASK_TYPE,
-            taskType,
-            EXCEPTION,
-            t::class.simpleName ?: "Undefined"
-        )
-    }
-
-    suspend fun incrementTaskLeaseExtendCount(taskType: String, taskCount: Int) {
-        incrementCount(
-            TASK_LEASE_EXTEND_COUNTER,
-            TASK_TYPE,
-            taskType,
-            incrementValue = taskCount.toLong()
-        )
-    }
-
-    suspend fun incrementTaskPollCount(taskType: String, taskCount: Int) {
-        incrementCount(
-            TASK_POLL_COUNTER,
-            TASK_TYPE,
-            taskType,
-            incrementValue= taskCount.toLong())
-    }
-
-    suspend fun recordWorkflowInputPayloadSize(
-        workflowType: String, version: String, payloadSize: Long) {
-        updateGaugeValue(
-            WORKFLOW_INPUT_SIZE,
-            WORKFLOW_TYPE,
-            workflowType,
-            WORKFLOW_VERSION,
-            version,
-            payloadSize = payloadSize)
-    }
-
-    suspend fun incrementExternalPayloadUsedCount(
-        name: String, operation: String, payloadType: String
-    ) {
-        incrementCount(
-            EXTERNAL_PAYLOAD_USED,
-            ENTITY_NAME,
-            name,
-            OPERATION,
-            operation,
-            PAYLOAD_TYPE,
-            payloadType
-        )
-    }
-
-    suspend fun incrementWorkflowStartErrorCount(workflowType: String, t: Throwable) {
-        incrementCount(
-            WORKFLOW_START_ERROR,
-            WORKFLOW_TYPE,
-            workflowType,
-            EXCEPTION,
-            t::class.simpleName ?: "Undefined"
-        )
-    }
 }
-
-fun Timer.record(amount: Duration) = record(amount.inWholeNanoseconds, TimeUnit.NANOSECONDS)
