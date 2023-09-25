@@ -39,7 +39,8 @@ fun HttpClientConfig<*>.configureClient() {
     HttpResponseValidator {
         handleResponseExceptionWithRequest { exception, request ->
             try {
-                val clientException = exception as? ResponseException ?: return@handleResponseExceptionWithRequest
+                val clientException = exception as? ResponseException
+                    ?: throw ConductorClientException("Unable to invoke Conductor API with uri: ${request.url}, runtime exception occurred", exception)
                 val exceptionResponse = clientException.response
                 val errorMessage = exceptionResponse.bodyAsText()
                 logger.warn { "Unable to invoke Conductor API with uri: ${request.url}, unexpected response from server: status=${exceptionResponse.status}, responseBody='$errorMessage'." }
