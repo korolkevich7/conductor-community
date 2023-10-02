@@ -1,7 +1,7 @@
 package com.netflix.spectator.api
 
-import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
+import kotlin.time.toJavaDuration
 
-internal fun Timer.record(amount: Duration) = record(amount.inWholeNanoseconds, TimeUnit.NANOSECONDS)
+fun Timer.record(amount: Duration) = record(amount.toJavaDuration())
 

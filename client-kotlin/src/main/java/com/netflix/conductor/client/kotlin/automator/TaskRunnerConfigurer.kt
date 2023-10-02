@@ -170,7 +170,7 @@ class TaskRunnerConfigurer private constructor(builder: Builder) {
      */
     fun shutdown() {
         TODO("maybe not needed")
-        taskPollExecutor.shutdown(shutdownGracePeriodSeconds)
+//        taskPollExecutor.shutdown(shutdownGracePeriodSeconds)
         workersDispatcher.close()
     }
 

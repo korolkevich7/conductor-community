@@ -8,18 +8,18 @@ import com.netflix.conductor.client.kotlin.telemetry.*
 import com.netflix.conductor.client.kotlin.worker.Worker
 import com.netflix.conductor.common.metadata.tasks.Task
 import com.netflix.conductor.common.metadata.tasks.TaskResult
+import com.netflix.conductor.common.metadata.tasks.responseTimeoutFromNow
 import com.netflix.discovery.EurekaClient
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.*
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
-import kotlin.time.TimeSource.Monotonic.markNow
 import kotlin.time.measureTimedValue
 
+typealias TaskWithResult = Pair<Task, TaskResult>
 private val logger = KotlinLogging.logger {}
 
 /**
@@ -40,7 +40,7 @@ class TaskPollExecutor(
     }
 
     @OptIn(ExperimentalTime::class)
-    suspend fun poll(worker: Worker): List<Task> {
+    internal suspend fun poll(worker: Worker): List<Task> {
         requireNotNull(worker.identity) { "Worker identity cannot be null" }
 
         val discoveryOverride = isDiscoveryOverride(worker.taskDefName)
@@ -50,7 +50,6 @@ class TaskPollExecutor(
             logger.debug { "Instance is NOT UP in discovery - will not poll" }
             return emptyList()
         }
-
         if (worker.paused()) {
             MetricsContainer.incrementTaskPausedCount(worker.taskDefName)
             logger.debug { "Worker ${worker::class} has been paused. Not polling anymore!" }
@@ -73,31 +72,28 @@ class TaskPollExecutor(
         return tasks
     }
 
-    fun shutdown(timeout: Int) {
-        TODO("cancel leaseScope instead")
-        //leaseExtendMap.clear()
-    }
+//    fun shutdown(timeout: Int) {
+//        TODO("cancel leaseScope instead")
+//    }
 
-//todo coroutine uncaughtExceptionHandler
-@OptIn(DelicateCoroutinesApi::class)
-val handler = CoroutineExceptionHandler{ context, exception ->
-    GlobalScope.launch {
-        MetricsContainer.incrementUncaughtExceptionCount()
-    }
-    logger.error(exception) { "Uncaught exception. Context $context will exit now" }
-}
+////todo coroutine uncaughtExceptionHandler
+//@OptIn(DelicateCoroutinesApi::class)
+//val handler = CoroutineExceptionHandler{ context, exception ->
+//    GlobalScope.launch {
+//        MetricsContainer.incrementUncaughtExceptionCount()
+//    }
+//    logger.error(exception) { "Uncaught exception. Context $context will exit now" }
+//}
 
 
-    @OptIn(ExperimentalTime::class)
-    suspend fun processTask(worker: Worker, task: Task): Pair<Task, TaskResult> {
+    internal suspend fun processTask(worker: Worker, task: Task): TaskWithResult {
         MetricsContainer.incrementTaskPollCount(task.taskType, 1)
         val domain = taskDomain(task.taskType)
         val taskResponseTimeoutSeconds = task.responseTimeoutSeconds
         logger.debug {
             "Polled task: ${task.taskId} of type: ${task.taskType} in domain: '$domain', from worker: ${worker.identity}" }
-        val wastedTime = markNow().elapsedNow().minus(task.startTime.milliseconds)
-        val responseTimeout = taskResponseTimeoutSeconds.seconds.minus(wastedTime)
-            //TODO
+        //TODO
+        val responseTimeout = task.responseTimeoutFromNow
         try {
             return withTimeout(responseTimeout) {
                 val deferred = async {
@@ -122,7 +118,7 @@ val handler = CoroutineExceptionHandler{ context, exception ->
     }
 
     @OptIn(ExperimentalTime::class)
-    suspend fun executeTask(worker: Worker, task: Task): Pair<Task, TaskResult> {
+    private suspend fun executeTask(worker: Worker, task: Task): TaskWithResult {
         logger.debug {
             "Executing task: ${task.taskId} of type: ${task.taskDefName} in worker: ${worker::class.simpleName ?: "Undefined"} at ${worker.identity}" }
         val (result, duration) = measureTimedValue {
@@ -134,23 +130,20 @@ val handler = CoroutineExceptionHandler{ context, exception ->
         return result
     }
 
-    private suspend fun _executeTask(worker: Worker, task: Task): Pair<Task, TaskResult> {
-        var result: TaskResult? = null
-        try {
-            result = worker.execute(task)
+    private suspend fun _executeTask(worker: Worker, task: Task): TaskWithResult {
+        return try {
+            val result = worker.execute(task)
             result.workflowInstanceId = task.workflowInstanceId
             result.taskId = task.taskId
             result.workerId = worker.identity
+            task to result
         } catch (e: Exception) {
             logger.error(e) {
-                "Unable to execute task: ${task.taskId} of type: ${task.taskDefName}" }
-            if (result == null) {
-                task.status = Task.Status.FAILED
-                result = TaskResult(task)
+                "Unable to execute task: ${task.taskId} of type: ${task.taskDefName}"
             }
-            result = handleException(e, result, worker, task)
+            val result = handleException(e, worker, task)
+            task to result
         }
-        return task to result!!
     }
 
     private suspend fun updateTaskResult(
@@ -161,7 +154,7 @@ val handler = CoroutineExceptionHandler{ context, exception ->
     ) {
         try {
             // upload if necessary
-            val externalStorageLocation = retryIO(count) {
+            val externalStorageLocation = retryIO(times = count) {
                 upload(result, task.taskType)
             }
             externalStorageLocation?.let {
@@ -213,28 +206,29 @@ val handler = CoroutineExceptionHandler{ context, exception ->
     }
 
     private suspend fun handleException(
-            t: Throwable,
-            result: TaskResult,
-            worker: Worker,
-            task: Task
+        t: Throwable,
+        worker: Worker,
+        task: Task
     ): TaskResult {
+        val result = TaskResult(task)
         logger.error(t) { "Error while executing task $task" }
         MetricsContainer.incrementTaskExecutionErrorCount(
                 worker.taskDefName,
                 t
         )
+        task.status = Task.Status.FAILED
         result.status = TaskResult.Status.FAILED
         result.reasonForIncompletion = "Error while executing the task: $t"
         result.log(t)
         return result
     }
 
-    suspend fun updateTaskResult(task: Task, result: TaskResult, worker: Worker) {
+    internal suspend fun updateTaskResult(task: Task, result: TaskResult, worker: Worker) {
         updateTaskResult(updateRetryCount, task, result, worker)
     }
 
     @OptIn(ExperimentalTime::class)
-    suspend fun launchExtendLease(interval: Duration, task: Task, taskDeferred: Job): Job =
+    private suspend fun launchExtendLease(interval: Duration, task: Task, taskDeferred: Job): Job =
         coroutineScope {
             timer(interval, interval, leaseExtendDispatcher) {
                 extendLease(task, taskDeferred)

@@ -32,21 +32,24 @@ class KtorTaskClientTest : KtorClientTest() {
             when (request.url.toString()) {
                 "${ROOT_URL}/tasks/search?query=$query" -> respond(
                     content = objectMapper.writeValueAsString(resultSummary),
-                    headers = headersOf(HttpHeaders.ContentType, "application/json")
+                    headers = headerJson()
                 )
                 "${ROOT_URL}/tasks/search-v2?query=$query" -> respond(
                     content = objectMapper.writeValueAsString(resultTask),
-                    headers = headersOf(HttpHeaders.ContentType, "application/json")
+                    headers = headerJson()
                 )
                 "${ROOT_URL}/tasks/search?start=0&size=10&sort=sort&freeText=text&query=$query" -> respond(
                     content = objectMapper.writeValueAsString(resultSummary),
-                    headers = headersOf(HttpHeaders.ContentType, "application/json")
+                    headers = headerJson()
                 )
                 "${ROOT_URL}/tasks/search-v2?start=0&size=10&sort=sort&freeText=text&query=$query" -> respond(
                     content = objectMapper.writeValueAsString(resultTask),
-                    headers = headersOf(HttpHeaders.ContentType, "application/json")
+                    headers = headerJson()
                 )
-
+                "$ROOT_URL/tasks/poll/task_1?workerid=worker-id&count=10&timeout=100&domain=domain" -> respond(
+                    content = objectMapper.writeValueAsString(listOf(Task(), Task())),
+                    headers = headerJson()
+                )
                 else -> throw IllegalArgumentException("Wrong url")
             }
 
@@ -128,5 +131,18 @@ class KtorTaskClientTest : KtorClientTest() {
                     && searchResult.results?.size == 1
                     && searchResult.results?.get(0) is Task
         }
+    }
+
+    @Test
+    fun batchPollTasksInDomain(): Unit = runBlocking {
+        val tasks = taskClient.batchPollTasksInDomain(
+            "task_1",
+            "domain",
+            "worker-id",
+            10,
+            100
+        )
+
+        assertTrue { tasks.size == 2 }
     }
 }

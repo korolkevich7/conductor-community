@@ -41,20 +41,7 @@ class KtorTaskClient(rootURI: String, httpClient: HttpClient): TaskClient, KtorB
         workerId: String,
         count: Int,
         timeoutInMillisecond: Int
-    ): List<Task> {
-        require(taskType.isNotBlank()) { TASK_TYPE_NOT_BLANK }
-        require(workerId.isNotBlank()) { WORKER_ID_NOT_BLANK }
-        require(count > 0) { COUNT_CONDITION }
-        val response = httpClient.get {
-            url("$rootURI/tasks/poll/$taskType")
-            parameter("workerid", workerId)
-            parameter("count", count)
-            parameter("timeout", timeoutInMillisecond)
-        }
-        val tasks: List<Task> = response.body()
-        tasks.forEach { populateTaskPayloads(it) }
-        return tasks
-    }
+    ): List<Task> = batchPollTasksInDomain(taskType, null, workerId, count, timeoutInMillisecond)
 
     override suspend fun batchPollTasksInDomain(
         taskType: String,
@@ -259,7 +246,7 @@ class KtorTaskClient(rootURI: String, httpClient: HttpClient): TaskClient, KtorB
     }
 
     private suspend fun populateTaskPayloads(task: Task) {
-        if (task.externalInputPayloadStoragePath.isNotBlank()) {
+        if (task.externalInputPayloadStoragePath?.isNotBlank() == true) {
             MetricsContainer.incrementExternalPayloadUsedCount(
                 task.taskDefName,
                 PayloadStorage.Operation.READ.name,
@@ -271,7 +258,7 @@ class KtorTaskClient(rootURI: String, httpClient: HttpClient): TaskClient, KtorB
             )
             task.externalInputPayloadStoragePath = null
         }
-        if (task.externalOutputPayloadStoragePath.isNotBlank()) {
+        if (task.externalOutputPayloadStoragePath?.isNotBlank() == true) {
             MetricsContainer.incrementExternalPayloadUsedCount(
                 task.taskDefName,
                 PayloadStorage.Operation.READ.name,

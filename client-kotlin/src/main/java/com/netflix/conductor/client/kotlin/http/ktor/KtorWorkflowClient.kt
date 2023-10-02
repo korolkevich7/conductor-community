@@ -224,7 +224,7 @@ class KtorWorkflowClient(rootURI: String, httpClient: HttpClient): WorkflowClien
     }
 
     private suspend fun populateWorkflowOutput(workflow: Workflow) {
-        if (workflow.externalOutputPayloadStoragePath.isNotBlank()) {
+        if (workflow.externalOutputPayloadStoragePath?.isNotBlank() == true) {
             MetricsContainer.incrementExternalPayloadUsedCount(
                 workflow.workflowName,
                 PayloadStorage.Operation.READ.name,
