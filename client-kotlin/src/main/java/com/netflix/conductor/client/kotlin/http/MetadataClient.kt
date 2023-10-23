@@ -30,7 +30,7 @@ interface MetadataClient {
      * @param version the version of the workflow def
      * @return Workflow definition for the given workflow and version
      */
-    suspend fun getWorkflowDef(name: String, version: Int?): WorkflowDef
+    suspend fun getWorkflowDef(name: String, version: Int? = null): WorkflowDef
 
     /**
      * Removes the workflow definition of a workflow from the conductor server. It does not remove
@@ -61,7 +61,7 @@ interface MetadataClient {
      * @param taskType type of task for which to retrieve the definition
      * @return Task Definition for the given task type
      */
-    suspend fun getTaskDef(taskType: String): TaskDef?
+    suspend fun getTaskDef(taskType: String): TaskDef
 
     /**
      * Removes the task definition of a task type from the conductor server. Use with caution.

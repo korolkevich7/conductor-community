@@ -6,6 +6,7 @@ import com.netflix.conductor.common.metadata.workflow.WorkflowDef
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
+import io.ktor.http.*
 
 class KtorMetadataClient(rootURI: String, httpClient: HttpClient): MetadataClient, KtorBaseClient(rootURI, httpClient) {
 
@@ -13,6 +14,7 @@ class KtorMetadataClient(rootURI: String, httpClient: HttpClient): MetadataClien
         httpClient.post {
             url("$rootURI/metadata/workflow")
             setBody(workflowDef)
+            contentType(ContentType.Application.Json)
         }
     }
 
@@ -20,6 +22,7 @@ class KtorMetadataClient(rootURI: String, httpClient: HttpClient): MetadataClien
         httpClient.post {
             url("$rootURI/metadata/workflow/validate")
             setBody(workflowDef)
+            contentType(ContentType.Application.Json)
         }
     }
 
@@ -27,6 +30,7 @@ class KtorMetadataClient(rootURI: String, httpClient: HttpClient): MetadataClien
         httpClient.put {
             url("$rootURI/metadata/workflow")
             setBody(workflowDefs)
+            contentType(ContentType.Application.Json)
         }
     }
 
@@ -50,6 +54,7 @@ class KtorMetadataClient(rootURI: String, httpClient: HttpClient): MetadataClien
         httpClient.post {
             url("$rootURI/metadata/taskdefs")
             setBody(taskDefs)
+            contentType(ContentType.Application.Json)
         }
     }
 
@@ -57,10 +62,11 @@ class KtorMetadataClient(rootURI: String, httpClient: HttpClient): MetadataClien
         httpClient.put {
             url("$rootURI/metadata/taskdefs")
             setBody(taskDef)
+            contentType(ContentType.Application.Json)
         }
     }
 
-    override suspend fun getTaskDef(taskType: String): TaskDef? {
+    override suspend fun getTaskDef(taskType: String): TaskDef {
         require(taskType.isNotBlank()) { "Task type cannot be blank" }
         val response = httpClient.get {
             url("$rootURI/metadata/taskdefs/${taskType}")

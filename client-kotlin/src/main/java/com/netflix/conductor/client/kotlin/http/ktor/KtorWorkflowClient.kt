@@ -14,6 +14,7 @@ import com.netflix.conductor.common.utils.ExternalPayloadStorage
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
+import io.ktor.http.*
 import io.ktor.utils.io.errors.*
 
 class KtorWorkflowClient(rootURI: String, httpClient: HttpClient): WorkflowClient, KtorBaseClient(rootURI, httpClient) {
@@ -26,6 +27,7 @@ class KtorWorkflowClient(rootURI: String, httpClient: HttpClient): WorkflowClien
         val response = httpClient.post {
             url("$rootURI/workflow")
             setBody(startWorkflowRequest)
+            contentType(ContentType.Application.Json)
         }
         return response.body()
     }
@@ -74,6 +76,7 @@ class KtorWorkflowClient(rootURI: String, httpClient: HttpClient): WorkflowClien
             url("$rootURI/workflow/bulk/terminate")
             parameter("reason", reason)
             setBody(workflowIds)
+            contentType(ContentType.Application.Json)
         }
         return response.body()
     }
@@ -137,6 +140,7 @@ class KtorWorkflowClient(rootURI: String, httpClient: HttpClient): WorkflowClien
         val response = httpClient.post {
             url("$rootURI/workflow/$workflowId/rerun")
             setBody(rerunWorkflowRequest)
+            contentType(ContentType.Application.Json)
         }
         return response.body()
     }

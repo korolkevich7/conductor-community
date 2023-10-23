@@ -27,7 +27,6 @@ class TaskPollExecutorTest: KtorClientTest() {
     val taskPoolExecutor: TaskPollExecutor
 
     init {
-        val tasks = listOf(Task(), Task())
         taskPoolExecutor = TaskPollExecutor(eurekaClient,
             taskClient,
             updateRetryCount = 2,

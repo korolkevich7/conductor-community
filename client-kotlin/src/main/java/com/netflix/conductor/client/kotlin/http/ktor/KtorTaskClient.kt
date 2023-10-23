@@ -14,6 +14,7 @@ import com.netflix.conductor.common.utils.ExternalPayloadStorage
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
+import io.ktor.http.*
 import io.ktor.utils.io.errors.IOException
 
 class KtorTaskClient(rootURI: String, httpClient: HttpClient): TaskClient, KtorBaseClient(rootURI, httpClient) {
@@ -69,6 +70,7 @@ class KtorTaskClient(rootURI: String, httpClient: HttpClient): TaskClient, KtorB
         httpClient.post {
             url("$rootURI/tasks")
             setBody(taskResult)
+            contentType(ContentType.Application.Json)
         }
     }
 
@@ -117,6 +119,7 @@ class KtorTaskClient(rootURI: String, httpClient: HttpClient): TaskClient, KtorB
         httpClient.post {
             url("$rootURI/tasks/$taskId/log")
             setBody(logMessage)
+            //todo
         }
     }
 
