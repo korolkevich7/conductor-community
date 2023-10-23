@@ -10,27 +10,23 @@ buildscript {
     }
 }
 
-apply plugin: 'kotlin'
+apply plugin: "kotlin"
 
-configurations.all {
-    compileKotlin {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+//apply plugin: "org.jetbrains.kotlin.jvm"
 
-        kotlinOptions {
-            jvmTarget = "11"
-        }
+compileKotlin {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+
+}
+
+compileTestKotlin {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+
+    kotlinOptions {
+        jvmTarget = "11"
     }
-
-    compileTestKotlin {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-
-        kotlinOptions {
-            jvmTarget = "11"
-        }
-    }
-//    exclude group: 'amazon', module: 'aws-java-sdk'
 }
 
 dependencies {
@@ -56,7 +52,7 @@ dependencies {
     implementation "com.netflix.archaius:archaius-core:0.7.6"
     implementation "com.netflix.spectator:spectator-api:${revSpectator}"
 
-    implementation ("com.netflix.eureka:eureka-client:${revEurekaClient}") {
+    implementation("com.netflix.eureka:eureka-client:${revEurekaClient}") {
         exclude group: 'com.google.guava', module: 'guava'
     }
     implementation "com.amazonaws:aws-java-sdk-core:${revAwsSdk}"

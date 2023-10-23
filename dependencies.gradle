@@ -2,7 +2,7 @@
  * Common place to define all the version dependencies
  */
 ext {
-    revKotlin = '1.7.10'
+    revKotlin = '1.8.22'
     revCoroutines = '1.7.1'
     revMockitoKotlin = '1.6.0'
     revConductor = '3.13.2'

@@ -75,6 +75,7 @@ allprojects {
     dependencyManagement {
         imports {
             mavenBom("org.springframework.boot:spring-boot-dependencies:2.6.7")
+            mavenBom("org.jetbrains.kotlin:kotlin-bom:${revKotlin}")
         }
     }
 
