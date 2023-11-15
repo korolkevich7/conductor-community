@@ -8,13 +8,7 @@ import com.netflix.conductor.client.kotlin.exception.ConductorClientException
 import com.netflix.conductor.client.kotlin.http.PayloadStorage
 import com.netflix.conductor.common.run.ExternalStorageLocation
 import io.ktor.client.*
-import io.ktor.client.engine.okhttp.*
 import io.ktor.utils.io.errors.*
-import okhttp3.ConnectionPool
-import okhttp3.OkHttpClient
-import java.time.Duration
-import java.util.concurrent.TimeUnit
-
 
 open class KtorBaseClient(val rootURI: String, val httpClient: HttpClient) {
 
@@ -57,16 +51,4 @@ open class KtorBaseClient(val rootURI: String, val httpClient: HttpClient) {
         return externalStorageLocation.path
     }
 
-}
-
-fun createOkHttpClient(): HttpClient {
-    return HttpClient(OkHttp){
-        engine {
-            pipelining = true
-            preconfigured = OkHttpClient.Builder()
-                .connectionPool(ConnectionPool(100, 10, TimeUnit.SECONDS))
-                .readTimeout(Duration.ofSeconds(30))
-                .build()
-        }
-    }
 }

@@ -34,7 +34,6 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-common:${revKotlin}"
 
     implementation("io.ktor:ktor-client-core:${revKtor}")
-    implementation("io.ktor:ktor-client-okhttp:${revKtor}")
 
     implementation("io.ktor:ktor-client-content-negotiation:${revKtor}")
     implementation("io.ktor:ktor-serialization-jackson:${revKtor}")

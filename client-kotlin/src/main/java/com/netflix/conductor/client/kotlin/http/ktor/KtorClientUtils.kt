@@ -1,7 +1,6 @@
 package com.netflix.conductor.client.kotlin.http.ktor
 
 import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
@@ -13,23 +12,15 @@ import com.netflix.conductor.common.validation.ErrorResponse
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.*
 import io.ktor.client.engine.*
-import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.statement.*
-import io.ktor.http.*
 import io.ktor.serialization.jackson.*
 
 val logger = KotlinLogging.logger { }
 
 fun defaultHttpClient(engine: HttpClientEngine): HttpClient {
     return HttpClient(engine) {
-        configureClient()
-    }
-}
-
-fun defaultHttpClient(): HttpClient {
-    return HttpClient(OkHttp) {
         configureClient()
     }
 }

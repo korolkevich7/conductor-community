@@ -1,5 +1,6 @@
 package com.netflix.conductor.client.kotlin.http.ktor
 
+import bodySafe
 import com.netflix.conductor.client.kotlin.exception.ConductorClientException
 import com.netflix.conductor.client.kotlin.http.PayloadStorage
 import com.netflix.conductor.client.kotlin.http.TaskClient
@@ -55,13 +56,13 @@ class KtorTaskClient(rootURI: String, httpClient: HttpClient): TaskClient, KtorB
         require(workerId.isNotBlank()) { WORKER_ID_NOT_BLANK }
         require(count > 0) { COUNT_CONDITION }
         val response = httpClient.get {
-            url("$rootURI/tasks/poll/$taskType")
+            url("$rootURI/tasks/poll/batch/$taskType")
             parameter("workerid", workerId)
             parameter("count", count)
             parameter("timeout", timeoutInMillisecond)
             parameter("domain", domain)
         }
-        val tasks: List<Task> = response.body()
+        val tasks: List<Task> = response.bodySafe()
         tasks.forEach { populateTaskPayloads(it) }
         return tasks
     }
