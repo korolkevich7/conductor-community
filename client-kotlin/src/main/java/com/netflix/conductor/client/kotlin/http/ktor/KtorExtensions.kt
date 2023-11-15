@@ -1,8 +1,15 @@
-import io.ktor.client.call.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
+package com.netflix.conductor.client.kotlin.http.ktor
 
-suspend inline fun <reified T> HttpResponse.bodySafe(): List<T> {
+import io.ktor.client.call.body
+import io.ktor.client.statement.HttpResponse
+import io.ktor.http.HttpStatusCode
+
+suspend inline fun <reified T> HttpResponse.bodyListSafe(): List<T> {
     if (call.response.status == HttpStatusCode.NoContent) return emptyList()
+    return body()
+}
+
+suspend inline fun <reified T> HttpResponse.bodySafe(): T? {
+    if (call.response.status == HttpStatusCode.NoContent) return null
     return body()
 }

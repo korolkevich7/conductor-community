@@ -21,7 +21,7 @@ interface TaskClient {
      * @param workerId Name of the client worker. Used for logging.
      * @return Task waiting to be executed.
      */
-    suspend fun pollTask(taskType: String, workerId: String, domain: String): Task
+    suspend fun pollTask(taskType: String, workerId: String, domain: String): Task?
 
     /**
      * Perform a batch poll for tasks by task type. Batch size is configurable by count.
