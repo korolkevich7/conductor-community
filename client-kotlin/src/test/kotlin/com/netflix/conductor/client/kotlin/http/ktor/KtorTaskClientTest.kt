@@ -1,12 +1,12 @@
 package com.netflix.conductor.client.kotlin.http.ktor
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.netflix.conductor.client.kotlin.http.TaskClient
 import com.netflix.conductor.common.metadata.tasks.Task
 import com.netflix.conductor.common.run.SearchResult
 import com.netflix.conductor.common.run.TaskSummary
-import io.ktor.client.engine.mock.*
-import io.ktor.http.*
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.runBlocking
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -175,6 +175,6 @@ class KtorTaskClientTest : KtorClientTest() {
             "domain"
         )
 
-        assertTrue { task.taskType == "task_1"}
+        assertTrue { task?.taskType == "task_1"}
     }
 }

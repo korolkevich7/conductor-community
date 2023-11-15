@@ -1,6 +1,5 @@
 package com.netflix.conductor.client.kotlin.http.ktor
 
-import bodySafe
 import com.netflix.conductor.client.kotlin.exception.ConductorClientException
 import com.netflix.conductor.client.kotlin.http.PayloadStorage
 import com.netflix.conductor.client.kotlin.http.TaskClient
@@ -25,7 +24,7 @@ class KtorTaskClient(rootURI: String, httpClient: HttpClient): TaskClient, KtorB
         const val WORKER_ID_NOT_BLANK = "Worker id cannot be blank"
         const val COUNT_CONDITION = "Count must be greater than 0"
     }
-    override suspend fun pollTask(taskType: String, workerId: String, domain: String): Task {
+    override suspend fun pollTask(taskType: String, workerId: String, domain: String): Task? {
         require(taskType.isNotBlank()) { TASK_TYPE_NOT_BLANK }
         require(workerId.isNotBlank()) { WORKER_ID_NOT_BLANK }
         val response = httpClient.get {
@@ -33,8 +32,9 @@ class KtorTaskClient(rootURI: String, httpClient: HttpClient): TaskClient, KtorB
             parameter("workerid", workerId)
             parameter("domain", domain)
         }
-        val task: Task = response.body()
-        populateTaskPayloads(task)
+        val task: Task? = response.bodySafe()
+        if (task != null) populateTaskPayloads(task)
+
         return task
     }
 
@@ -62,7 +62,7 @@ class KtorTaskClient(rootURI: String, httpClient: HttpClient): TaskClient, KtorB
             parameter("timeout", timeoutInMillisecond)
             parameter("domain", domain)
         }
-        val tasks: List<Task> = response.bodySafe()
+        val tasks: List<Task> = response.bodyListSafe()
         tasks.forEach { populateTaskPayloads(it) }
         return tasks
     }
@@ -129,7 +129,7 @@ class KtorTaskClient(rootURI: String, httpClient: HttpClient): TaskClient, KtorB
         val response = httpClient.get {
             url("$rootURI/tasks/$taskId/log")
         }
-        return response.body()
+        return response.bodyListSafe()
     }
 
     override suspend fun getTaskDetails(taskId: String): Task {
@@ -180,11 +180,11 @@ class KtorTaskClient(rootURI: String, httpClient: HttpClient): TaskClient, KtorB
             url("$rootURI/tasks/queue/polldata")
             parameter("taskType", taskType)
         }
-        return response.body()
+        return response.bodyListSafe()
     }
 
     override suspend fun getAllPollData(): List<PollData> =
-        httpClient.get("$rootURI/tasks/queue/polldata/all").body()
+        httpClient.get("$rootURI/tasks/queue/polldata/all").bodyListSafe()
 
     override suspend fun requeueAllPendingTasks(): String =
         httpClient.post("$rootURI/tasks/queue/requeue").body()
