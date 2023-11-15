@@ -76,4 +76,5 @@ dependencies {
     testImplementation "org.jetbrains.kotlin:kotlin-test-junit5:${revKotlin}"
     testImplementation "io.ktor:ktor-client-mock:${revKtor}"
     testImplementation "io.mockk:mockk:${revMockk}"
+    testImplementation "io.ktor:ktor-client-cio:${revKtor}"
 }

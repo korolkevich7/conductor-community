@@ -46,9 +46,17 @@ class KtorTaskClientTest : KtorClientTest() {
                     content = objectMapper.writeValueAsString(resultTask),
                     headers = headerJson()
                 )
-                "$ROOT_URL/tasks/poll/task_1?workerid=worker-id&count=10&timeout=100&domain=domain" -> respond(
+                "$ROOT_URL/tasks/poll/task_1?workerid=worker-id&domain=domain" -> respond(
+                    content = objectMapper.writeValueAsString(Task().apply { this.taskType = "task_1" }),
+                    headers = headerJson()
+                )
+                "$ROOT_URL/tasks/poll/batch/task_1?workerid=worker-id&count=10&timeout=100&domain=domain" -> respond(
                     content = objectMapper.writeValueAsString(listOf(Task(), Task())),
                     headers = headerJson()
+                )
+                "$ROOT_URL/tasks/poll/batch/task_2?workerid=worker-id&count=10&timeout=100&domain=domain" -> respond(
+                    content = "",
+                    status = HttpStatusCode.NoContent
                 )
                 else -> throw IllegalArgumentException("Wrong url")
             }
@@ -144,5 +152,29 @@ class KtorTaskClientTest : KtorClientTest() {
         )
 
         assertTrue { tasks.size == 2 }
+    }
+
+    @Test
+    fun batchEmptyPollTasksInDomain(): Unit = runBlocking {
+        val tasks = taskClient.batchPollTasksInDomain(
+            "task_2",
+            "domain",
+            "worker-id",
+            10,
+            100
+        )
+
+        assertTrue { tasks.isEmpty() }
+    }
+
+    @Test
+    fun pollTasksInDomain(): Unit = runBlocking {
+        val task = taskClient.pollTask(
+            "task_1",
+            "worker-id",
+            "domain"
+        )
+
+        assertTrue { task.taskType == "task_1"}
     }
 }

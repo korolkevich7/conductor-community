@@ -15,10 +15,10 @@ import com.netflix.conductor.client.kotlin.automator.TaskRunnerConfigurer
 import com.netflix.conductor.client.kotlin.http.TaskClient
 import com.netflix.conductor.client.kotlin.http.ktor.KtorTaskClient
 import io.ktor.client.*
-import io.ktor.client.engine.okhttp.*
+import io.ktor.client.engine.cio.*
 
 fun main() {
-    val taskClient: TaskClient = KtorTaskClient("http://localhost:8080/api/", HttpClient(OkHttp))
+    val taskClient: TaskClient = KtorTaskClient("http://localhost:8080/api/", HttpClient(CIO))
     val threadCount = 2 // number of threads used to execute workers.  To avoid starvation, should be
     // same or more than number of workers
     val worker1 = SampleWorker("task_1")
